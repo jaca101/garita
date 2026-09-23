@@ -58,6 +58,16 @@ struct GaritaApp: App {
             }
         }
 
+        // Bienvenida: la primera vez, si falta el Acceso total al disco.
+        Window("Bienvenido a Garita", id: "bienvenida") {
+            VentanaBienvenida()
+                .environment(modelo)
+                .onAppear { modelo.ventanaAbierta() }
+                .onDisappear { modelo.ventanaCerrada() }
+        }
+        .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+
         // Historial de avisos (botón 🕘 en la cabecera).
         Window("Historial de Garita", id: "historial") {
             VentanaHistorial()
@@ -88,14 +98,19 @@ private struct IconoBarra: View {
                 if modelo.necesitaAtencion {
                     mostrarVentana()
                 }
+                // La primera vez, si falta el Acceso total al disco, la bienvenida
+                // (se abre la última para que quede delante).
+                if !modelo.accesoTotal && !modelo.bienvenidaVista {
+                    mostrarVentana(id: "bienvenida", titulo: "Bienvenido a Garita")
+                }
             }
             .onChange(of: modelo.peticionesDeVentana) {
                 mostrarVentana()
             }
     }
 
-    private func mostrarVentana() {
-        abrirVentana(id: "principal")
+    private func mostrarVentana(id: String = "principal", titulo: String = "Garita") {
+        abrirVentana(id: id)
         NSApplication.shared.activate()
 
         // Si ya estaba abierta, openWindow no la trae delante, y macOS puede
@@ -106,7 +121,7 @@ private struct IconoBarra: View {
             try? await Task.sleep(for: .milliseconds(150))
             let ventana = NSApplication.shared.windows.first {
                 !($0 is NSPanel)    // el desplegable de la barra es un NSPanel
-                    && ($0.identifier?.rawValue.hasPrefix("principal") == true || $0.title == "Garita")
+                    && ($0.identifier?.rawValue.hasPrefix(id) == true || $0.title == titulo)
             }
             ventana?.makeKeyAndOrderFront(nil)
             NSApplication.shared.activate()

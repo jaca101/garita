@@ -83,6 +83,14 @@ final class ModeloApp {
     /// abierta, Garita es app normal (Dock y ⌘Tab); con ninguna, solo barra de menú.
     @ObservationIgnored var ventanasAbiertas = 0
 
+    /// ¿Tiene Garita Acceso total al disco? Se vuelve a comprobar cada vez que
+    /// Garita pasa a primer plano (p. ej. al volver de Ajustes del Sistema).
+    var accesoTotal = AccesoDisco.concedido()
+    /// La ventana de bienvenida ya se mostró y se cerró ("Empezar" o "Ahora no").
+    var bienvenidaVista = UserDefaults.standard.bool(forKey: "bienvenidaVista") {
+        didSet { UserDefaults.standard.set(bienvenidaVista, forKey: "bienvenidaVista") }
+    }
+
     /// Para revisar solo una vez, al arrancar, si hay que abrir la ventana.
     var revisionInicialHecha = false
 
@@ -93,6 +101,17 @@ final class ModeloApp {
         }
         aplicarVigilante()
         comprobarNotificaciones()
+
+        // Al volver a Garita (p. ej. desde Ajustes), revisamos el Acceso total al disco.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.comprobarAccesoTotal() }
+        }
+    }
+
+    func comprobarAccesoTotal() {
+        accesoTotal = AccesoDisco.concedido()
     }
 
     /// Pide permiso para notificar (macOS solo pregunta la primera vez) y apunta la respuesta.

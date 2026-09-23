@@ -4,6 +4,7 @@ import SwiftUI
 /// Muestra si ClamAV está listo y, si falta algo, qué hacer para arreglarlo.
 struct SeccionMotor: View {
     @Environment(ModeloApp.self) private var modelo
+    @Environment(\.openWindow) private var abrirVentana
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -39,6 +40,20 @@ struct SeccionMotor: View {
         if motor.freshclam != nil {
             Fila(ok: motor.configExiste, texto: "freshclam.conf", ruta: motor.configFreshclam?.path)
             Fila(ok: motor.hayFirmas, texto: "Base de firmas", ruta: motor.carpetaFirmas?.path)
+        }
+
+        // Acceso total al disco: opcional, pero sin él no se leen carpetas protegidas.
+        HStack {
+            Fila(ok: modelo.accesoTotal, texto: "Acceso total al disco",
+                 ruta: "Ajustes del Sistema → Privacidad y seguridad → Acceso total al disco")
+            if !modelo.accesoTotal {
+                Spacer()
+                Button("Configurar…") {
+                    abrirVentana(id: "bienvenida")
+                    NSApplication.shared.activate()
+                }
+                .controlSize(.small)
+            }
         }
 
         // Instrucciones para lo primero que falte (de una en una, en orden).

@@ -2,7 +2,7 @@
 # Genera build/Garita-<versión>.dmg para instalar Garita en otros Macs.
 #
 # El .dmg contiene:
-#   Garita.app      binario universal (Apple Silicon + Intel), firma ad-hoc
+#   Garita.app      binario universal (Apple Silicon + Intel), firmado con el certificado propio (o ad-hoc)
 #   Aplicaciones    acceso directo a /Applications, para arrastrar la app
 #   LEEME.txt       pasos de la primera vez (Gatekeeper, ClamAV, permisos)
 #

@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Compila Garita y la empaqueta como build/Garita.app (firma ad-hoc).
+# Compila Garita y la empaqueta como build/Garita.app (firmada; ver más abajo).
 # Uso:  ./construir.sh          → compila y empaqueta (solo para la arquitectura de este Mac)
 #       ./construir.sh abrir    → además, lanza la app
 #       UNIVERSAL=1 ./construir.sh  → binario universal (Apple Silicon + Intel), lo usa empaquetar.sh
@@ -35,8 +35,17 @@ for lado in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONOS" -o "$APP/Contents/Resources/Garita.icns"
 
-echo "→ Firmando ad-hoc…"
-codesign --force --sign - "$APP"
+# Firma: con el certificado propio si existe (ver crear-certificado.sh), para que
+# macOS reconozca siempre a Garita como la misma app y conserve sus permisos.
+# Si no existe, firma ad-hoc (funciona, pero los permisos se pierden al recompilar).
+CERTIFICADO="Garita (firma local)"
+if security find-certificate -c "$CERTIFICADO" >/dev/null 2>&1; then
+    echo "→ Firmando con \"$CERTIFICADO\"…"
+    codesign --force --sign "$CERTIFICADO" "$APP"
+else
+    echo "→ Firmando ad-hoc (crea un certificado propio con ./crear-certificado.sh)…"
+    codesign --force --sign - "$APP"
+fi
 
 echo "✓ Listo: $APP"
 

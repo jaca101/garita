@@ -39,11 +39,13 @@ en la app Terminal:
   c) En Garita, pulsa «Actualizar firmas» (descarga la base de virus, ~110 MB).
 
 
-OPCIONAL: ACCESO TOTAL AL DISCO
--------------------------------
-Para escanear carpetas protegidas del sistema (Mail, Safari, otras cuentas…):
-Ajustes del Sistema → Privacidad y seguridad → Acceso total al disco → «+» →
-Aplicaciones → Garita.
+ACCESO TOTAL AL DISCO (recomendado)
+-----------------------------------
+Para escanear carpetas protegidas (Mail, Mensajes, Safari, datos de otras
+apps…). macOS no deja que una app lo active sola: la primera vez Garita abre
+una ventana de bienvenida con botones que te llevan a cada paso:
+Ajustes del Sistema → Privacidad y seguridad → Acceso total al disco → Garita.
+Si no lo haces entonces, está en la sección «Motor ClamAV» → «Configurar…».
 
 
 QUÉ HACE
