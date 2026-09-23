@@ -12,7 +12,14 @@ enum Proceso {
     /// Ejecuta un programa, espera a que termine y devuelve su código y su salida.
     /// Bloquea hasta que acaba: llamarla siempre fuera del hilo principal.
     /// Devuelve nil si el programa ni siquiera pudo arrancar.
-    static func ejecutar(_ programa: URL, argumentos: [String]) -> ResultadoProceso? {
+    ///
+    /// `alArrancar`, si se indica, recibe el PID del proceso nada más arrancar,
+    /// por si hay que detenerlo antes de tiempo (ver `detener`).
+    static func ejecutar(
+        _ programa: URL,
+        argumentos: [String],
+        alArrancar: (@Sendable (Int32) -> Void)? = nil
+    ) -> ResultadoProceso? {
         let proceso = Process()
         proceso.executableURL = programa
         proceso.arguments = argumentos
@@ -28,11 +35,18 @@ enum Proceso {
         } catch {
             return nil
         }
+        alArrancar?(proceso.processIdentifier)
+
         let datos = tuberia.fileHandleForReading.readDataToEndOfFile()
         proceso.waitUntilExit()
 
         let texto = String(decoding: datos, as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return ResultadoProceso(codigo: proceso.terminationStatus, salida: texto)
+    }
+
+    /// Pide a un proceso que termine (señal SIGTERM, como `kill` en la Terminal).
+    static func detener(pid: Int32) {
+        kill(pid, SIGTERM)
     }
 }

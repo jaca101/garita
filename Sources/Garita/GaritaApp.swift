@@ -24,7 +24,7 @@ struct GaritaApp: App {
         // Ventana con el mismo panel. No se abre sola al arrancar: la abre
         // IconoBarra solo cuando hay algo que resolver.
         Window("Garita", id: "principal") {
-            MenuPrincipal()
+            MenuPrincipal(enVentana: true)
                 .environment(modelo)
                 .onAppear {
                     // Las apps sin Dock no pasan al frente solas: la traemos delante.

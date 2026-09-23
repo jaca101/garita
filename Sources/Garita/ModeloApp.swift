@@ -20,6 +20,16 @@ final class ModeloApp {
         didSet { UserDefaults.standard.set(ultimaComprobacion, forKey: "ultimaComprobacionFirmas") }
     }
 
+    /// true mientras clamscan está trabajando en un escaneo a demanda.
+    var escaneando = false
+    /// Qué se está escaneando ahora (para mostrarlo en el panel).
+    var rutasEscaneo: [URL] = []
+    /// Resultado del último escaneo a demanda.
+    var resultadoEscaneo: ResultadoEscaneo?
+    /// PID de clamscan mientras escanea, para poder cancelarlo.
+    private var pidEscaneo: Int32?
+    private var escaneoCancelado = false
+
     /// ¿Hay algo que el usuario deba resolver? (motor incompleto o firmas antiguas)
     var necesitaAtencion: Bool {
         guard let motor else { return false }
@@ -57,5 +67,34 @@ final class ModeloApp {
             }
             comprobarMotor()
         }
+    }
+
+    /// Escanea archivos o carpetas en segundo plano.
+    func escanear(_ rutas: [URL]) {
+        guard let clamscan = motor?.clamscan, motor?.listo == true,
+              !escaneando, !rutas.isEmpty else { return }
+        escaneando = true
+        escaneoCancelado = false
+        rutasEscaneo = rutas
+        resultadoEscaneo = nil
+
+        Task {
+            var resultado = await Task.detached {
+                Escaner.escanear(rutas, con: clamscan) { pid in
+                    Task { @MainActor in self.pidEscaneo = pid }
+                }
+            }.value
+            resultado.cancelado = escaneoCancelado
+            pidEscaneo = nil
+            escaneando = false
+            resultadoEscaneo = resultado
+        }
+    }
+
+    /// Detiene el escaneo en curso.
+    func cancelarEscaneo() {
+        guard let pidEscaneo else { return }
+        escaneoCancelado = true
+        Proceso.detener(pid: pidEscaneo)
     }
 }
