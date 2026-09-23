@@ -4,14 +4,33 @@ import SwiftUI
 /// despliega desde la barra de menú y la ventana "Garita".
 /// Falta añadir la sección del vigilante.
 struct MenuPrincipal: View {
+    /// true en la ventana, false en el panel de la barra.
+    var enVentana = false
+
+    @Environment(\.openWindow) private var abrirVentana
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Garita", systemImage: "shield.lefthalf.filled")
-                .font(.headline)
+            HStack {
+                Label("Garita", systemImage: "shield.lefthalf.filled")
+                    .font(.headline)
+                Spacer()
+                if !enVentana {
+                    // El panel se cierra al hacer clic fuera, así que no sirve para
+                    // arrastrar desde el Finder; la ventana sí (y sale en ⌘Tab).
+                    Button("Abrir ventana", systemImage: "macwindow") {
+                        abrirVentana(id: "principal")
+                        NSApplication.shared.activate()
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.borderless)
+                    .help("Abrir en una ventana (sale en ⌘Tab y admite arrastrar archivos)")
+                }
+            }
 
             Divider()
 
-            SeccionEscaneo()
+            SeccionEscaneo(admiteArrastrar: enVentana)
 
             Divider()
 

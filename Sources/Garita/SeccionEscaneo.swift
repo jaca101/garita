@@ -2,10 +2,17 @@ import AppKit
 import SwiftUI
 
 /// Escaneo bajo demanda: botón para elegir archivos o carpetas y el resultado
-/// del último escaneo. (También se puede escanear desde el Finder con clic
-/// derecho → "Escanear con Garita"; ver ServicioFinder.swift.)
+/// del último escaneo. En la ventana, además, se pueden soltar archivos encima.
+/// (También se puede escanear desde el Finder con clic derecho →
+/// "Escanear con Garita"; ver ServicioFinder.swift.)
 struct SeccionEscaneo: View {
+    /// Solo en la ventana: en el panel de la barra no se puede arrastrar,
+    /// porque se cierra en cuanto se hace clic en el Finder.
+    var admiteArrastrar = false
+
     @Environment(ModeloApp.self) private var modelo
+    /// true mientras el usuario arrastra algo por encima de la zona.
+    @State private var arrastrandoEncima = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -13,6 +20,8 @@ struct SeccionEscaneo: View {
 
             if modelo.escaneando {
                 enCurso
+            } else if admiteArrastrar {
+                zonaParaSoltar
             } else {
                 botonElegir
             }
@@ -52,6 +61,38 @@ struct SeccionEscaneo: View {
 
             Text("También desde el Finder: clic derecho → Escanear con Garita")
                 .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Rectángulo punteado (solo en la ventana): se puede soltar encima o
+    /// hacer clic para elegir.
+    private var zonaParaSoltar: some View {
+        let activo = modelo.motor?.listo == true
+
+        return Button {
+            elegirArchivos()
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: "arrow.down.doc").font(.title2)
+                Text("Suelta aquí archivos o carpetas")
+                Text("o haz clic para elegirlos").font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 80)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [5]))
+                    .foregroundStyle(arrastrandoEncima ? Color.accentColor : .secondary)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!activo)
+        .opacity(activo ? 1 : 0.4)
+        .dropDestination(for: URL.self) { urls, _ in
+            modelo.escanear(urls)
+            return true
+        } isTargeted: { encima in
+            arrastrandoEncima = encima
         }
     }
 

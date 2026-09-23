@@ -25,14 +25,22 @@ struct GaritaApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        // Ventana con el mismo panel. No se abre sola al arrancar: la abre
-        // IconoBarra cuando hay algo que resolver o al escanear desde el Finder.
+        // Ventana con el mismo panel, más la zona para arrastrar archivos.
+        // No se abre sola al arrancar: la abre IconoBarra cuando hay algo que
+        // resolver o al escanear desde el Finder, o el usuario desde el panel.
+        //
+        // Mientras está abierta, Garita pasa a ser una app "normal" (Dock y ⌘Tab),
+        // para poder volver a ella con ⌘Tab y arrastrar desde el Finder.
+        // Al cerrarla, vuelve a vivir solo en la barra de menú.
         Window("Garita", id: "principal") {
-            MenuPrincipal()
+            MenuPrincipal(enVentana: true)
                 .environment(modelo)
                 .onAppear {
-                    // Las apps sin Dock no pasan al frente solas: la traemos delante.
+                    NSApplication.shared.setActivationPolicy(.regular)
                     NSApplication.shared.activate()
+                }
+                .onDisappear {
+                    NSApplication.shared.setActivationPolicy(.accessory)
                 }
         }
         .windowResizability(.contentSize)
