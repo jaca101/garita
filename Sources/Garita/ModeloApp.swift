@@ -133,6 +133,11 @@ final class ModeloApp {
 
     // MARK: - Cuarentena
 
+    /// Vuelve a leer la carpeta de cuarentena (por si ha cambiado desde fuera).
+    func recargarCuarentena() {
+        cuarentena = Cuarentena.listar()
+    }
+
     /// Mueve a la cuarentena un archivo detectado en el último escaneo.
     func aislar(_ deteccion: Deteccion) {
         errorCuarentena = nil

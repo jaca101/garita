@@ -45,6 +45,23 @@ struct GaritaApp: App {
         }
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)
+        .commands {
+            // El menú de la app solo aparece con la ventana abierta. Ahí, ⌘Q cierra
+            // la ventana en vez de la app, para no dejar de vigilar sin querer.
+            // (Cerrar sesión o apagar el Mac siguen cerrando Garita con normalidad:
+            // esto solo cambia la opción del menú.)
+            CommandGroup(replacing: .appTermination) {
+                Button("Cerrar ventana (Garita sigue en la barra)") {
+                    (NSApplication.shared.keyWindow ?? NSApplication.shared.mainWindow)?.performClose(nil)
+                }
+                .keyboardShortcut("q")
+
+                Button("Salir de Garita del todo") {
+                    NSApplication.shared.terminate(nil)
+                }
+                .keyboardShortcut("q", modifiers: [.command, .option])
+            }
+        }
     }
 }
 

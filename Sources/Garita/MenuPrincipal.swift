@@ -8,6 +8,7 @@ struct MenuPrincipal: View {
     var enVentana = false
 
     @Environment(\.openWindow) private var abrirVentana
+    @Environment(\.dismissWindow) private var cerrarVentana
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -46,10 +47,18 @@ struct MenuPrincipal: View {
 
             Divider()
 
-            Button("Salir de Garita") {
-                NSApplication.shared.terminate(nil)
+            if enVentana {
+                // En la ventana solo la cerramos: Garita sigue en la barra de menú.
+                Button("Cerrar ventana") {
+                    cerrarVentana(id: "principal")
+                }
+                .keyboardShortcut("w")
+            } else {
+                Button("Salir de Garita") {
+                    NSApplication.shared.terminate(nil)
+                }
+                .keyboardShortcut("q")
             }
-            .keyboardShortcut("q")
         }
         .padding()
         .frame(width: 320)

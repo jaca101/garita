@@ -42,6 +42,8 @@ struct SeccionCuarentena: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        // Cada vez que se muestra (al abrir el panel o la ventana), releemos la carpeta.
+        .onAppear { modelo.recargarCuarentena() }
     }
 }
 
