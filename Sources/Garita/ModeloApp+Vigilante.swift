@@ -105,16 +105,7 @@ extension ModeloApp {
             actividad.removeLast(actividad.count - Self.maxActividad)
         }
 
-        // Mientras no haya notificaciones (siguiente paso), avisamos abriendo la ventana.
-        let hayAmenazas = nuevos.contains {
-            switch $0.resultado {
-            case .amenaza, .aislado: return true
-            default: return false
-            }
-        }
-        if hayAmenazas {
-            peticionesDeVentana += 1
-        }
+        avisar(Notificaciones.avisos(para: nuevos))
     }
 
     /// Aísla una amenaza del registro (botón "Aislar" en modo "solo avisar").

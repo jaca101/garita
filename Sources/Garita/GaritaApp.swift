@@ -35,13 +35,8 @@ struct GaritaApp: App {
         Window("Garita", id: "principal") {
             MenuPrincipal(enVentana: true)
                 .environment(modelo)
-                .onAppear {
-                    NSApplication.shared.setActivationPolicy(.regular)
-                    NSApplication.shared.activate()
-                }
-                .onDisappear {
-                    NSApplication.shared.setActivationPolicy(.accessory)
-                }
+                .onAppear { modelo.ventanaAbierta() }
+                .onDisappear { modelo.ventanaCerrada() }
         }
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)
@@ -62,6 +57,16 @@ struct GaritaApp: App {
                 .keyboardShortcut("q", modifiers: [.command, .option])
             }
         }
+
+        // Historial de avisos (botón 🕘 en la cabecera).
+        Window("Historial de Garita", id: "historial") {
+            VentanaHistorial()
+                .environment(modelo)
+                .onAppear { modelo.ventanaAbierta() }
+                .onDisappear { modelo.ventanaCerrada() }
+        }
+        .defaultSize(width: 440, height: 520)
+        .defaultLaunchBehavior(.suppressed)
     }
 }
 
@@ -91,7 +96,20 @@ private struct IconoBarra: View {
 
     private func mostrarVentana() {
         abrirVentana(id: "principal")
-        // Si ya estaba abierta, openWindow no la trae delante por sí solo.
         NSApplication.shared.activate()
+
+        // Si ya estaba abierta, openWindow no la trae delante, y macOS puede
+        // terminar de activar la app después (p. ej. al pulsar una notificación)
+        // y dejarla detrás de otras. Así que, un instante después, la buscamos
+        // y la ponemos delante nosotros.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            let ventana = NSApplication.shared.windows.first {
+                !($0 is NSPanel)    // el desplegable de la barra es un NSPanel
+                    && ($0.identifier?.rawValue.hasPrefix("principal") == true || $0.title == "Garita")
+            }
+            ventana?.makeKeyAndOrderFront(nil)
+            NSApplication.shared.activate()
+        }
     }
 }

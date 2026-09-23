@@ -4,6 +4,9 @@ import SwiftUI
 /// Lista de archivos en cuarentena, con opciones para restaurarlos o eliminarlos.
 struct SeccionCuarentena: View {
     @Environment(ModeloApp.self) private var modelo
+    /// Por defecto solo las más recientes, para no alargar el panel.
+    @State private var mostrarTodas = false
+    private let maxVisibles = 5
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -30,8 +33,17 @@ struct SeccionCuarentena: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(modelo.cuarentena) { elemento in
+                let visibles = mostrarTodas ? modelo.cuarentena : Array(modelo.cuarentena.prefix(maxVisibles))
+                ForEach(visibles) { elemento in
                     FilaCuarentena(elemento: elemento)
+                }
+                if modelo.cuarentena.count > maxVisibles {
+                    Button(mostrarTodas ? "Mostrar solo las \(maxVisibles) más recientes"
+                                        : "Mostrar las \(modelo.cuarentena.count)") {
+                        mostrarTodas.toggle()
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
                 }
             }
 

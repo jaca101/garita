@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 
 /// Estado compartido de toda la app. Las vistas lo leen y se redibujan solas
@@ -74,6 +74,15 @@ final class ModeloApp {
             || actividad.contains { $0.pendienteDeResolver }
     }
 
+    /// ¿Ha dado el usuario permiso para notificaciones? (se pregunta al arrancar)
+    var notificacionesPermitidas = false
+    /// Avisos enviados, lo más reciente primero (se guardan en historial.json).
+    var historial: [Aviso] = Historial.cargar()
+
+    /// Cuántas ventanas de Garita hay abiertas (principal, historial). Con alguna
+    /// abierta, Garita es app normal (Dock y ⌘Tab); con ninguna, solo barra de menú.
+    @ObservationIgnored var ventanasAbiertas = 0
+
     /// Para revisar solo una vez, al arrancar, si hay que abrir la ventana.
     var revisionInicialHecha = false
 
@@ -83,6 +92,14 @@ final class ModeloApp {
             self?.recibirDelVigilante(archivos)
         }
         aplicarVigilante()
+        comprobarNotificaciones()
+    }
+
+    /// Pide permiso para notificar (macOS solo pregunta la primera vez) y apunta la respuesta.
+    func comprobarNotificaciones() {
+        Task {
+            notificacionesPermitidas = await Notificaciones.pedirPermiso()
+        }
     }
 
     /// Vuelve a detectar ClamAV en segundo plano, sin bloquear la interfaz.
@@ -137,6 +154,10 @@ final class ModeloApp {
             pidEscaneo = nil
             escaneando = false
             resultadoEscaneo = resultado
+            // Si el usuario no está mirando Garita (p. ej. cerró el panel), le avisamos.
+            if !NSApplication.shared.isActive, let aviso = Notificaciones.aviso(para: resultado) {
+                avisar([aviso])
+            }
             escanearPendientes()
         }
     }
@@ -161,6 +182,47 @@ final class ModeloApp {
         guard let pidEscaneo else { return }
         escaneoCancelado = true
         Proceso.detener(pid: pidEscaneo)
+    }
+
+    // MARK: - Avisos
+
+    /// Apunta los avisos en el historial y los muestra como notificación.
+    /// Sin permiso para notificar, si alguno es importante (amenazas) abrimos la
+    /// ventana para que no pase desapercibido.
+    func avisar(_ avisos: [Aviso]) {
+        guard !avisos.isEmpty else { return }
+        historial.insert(contentsOf: avisos, at: 0)
+        if historial.count > Historial.maximo {
+            historial.removeLast(historial.count - Historial.maximo)
+        }
+        Historial.guardar(historial)
+
+        if notificacionesPermitidas {
+            avisos.forEach(Notificaciones.enviar)
+        } else if avisos.contains(where: \.importante) {
+            peticionesDeVentana += 1
+        }
+    }
+
+    func borrarHistorial() {
+        historial = []
+        Historial.guardar(historial)
+    }
+
+    // MARK: - Ventanas
+
+    /// Llamar al aparecer/desaparecer cada ventana de Garita.
+    func ventanaAbierta() {
+        ventanasAbiertas += 1
+        NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.activate()
+    }
+
+    func ventanaCerrada() {
+        ventanasAbiertas = max(0, ventanasAbiertas - 1)
+        if ventanasAbiertas == 0 {
+            NSApplication.shared.setActivationPolicy(.accessory)
+        }
     }
 
     // MARK: - Cuarentena

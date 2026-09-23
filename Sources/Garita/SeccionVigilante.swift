@@ -40,6 +40,17 @@ struct SeccionVigilante: View {
 
             estado
 
+            if !modelo.notificacionesPermitidas && modelo.vigilanteActivo {
+                HStack(alignment: .top) {
+                    Text("Notificaciones desactivadas: si encuentra algo, Garita abrirá su ventana.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Ajustes…") {
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
+                    }
+                    .controlSize(.small)
+                }
+            }
+
             ForEach(modelo.actividad.prefix(maxVisibles)) { evento in
                 FilaActividad(evento: evento)
             }
