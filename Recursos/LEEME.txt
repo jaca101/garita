@@ -1,0 +1,56 @@
+GARITA — antivirus de barra de menú para macOS (interfaz para ClamAV)
+====================================================================
+
+INSTALAR
+--------
+1. Arrastra Garita.app a la carpeta Aplicaciones (en esta misma ventana).
+
+2. Ábrela desde Aplicaciones. La primera vez macOS dirá que no puede
+   verificar al desarrollador (Garita no está firmada con una cuenta de
+   Apple Developer). Para permitirla:
+     - Pulsa «Aceptar» en ese aviso.
+     - Abre Ajustes del Sistema → Privacidad y seguridad.
+     - Abajo verás «Se ha bloqueado Garita…»: pulsa «Abrir igualmente»
+       y confirma con tu contraseña.
+   Solo hace falta una vez.
+
+3. Garita aparece como un escudo con una «G» en la barra de menú (arriba a
+   la derecha). Si no lo ves, puede estar escondido tras el notch: arrastra
+   otros iconos con ⌘ pulsado para hacerle sitio.
+
+4. Acepta los permisos que pida macOS:
+     - Carpetas Descargas y Documentos (para vigilar las descargas).
+     - Notificaciones (para avisarte de amenazas).
+
+
+CLAMAV (el motor antivirus)
+---------------------------
+Garita usa ClamAV, que se instala aparte con Homebrew. Si falta, Garita lo
+indica en su ventana y muestra los comandos para copiarlos. En resumen,
+en la app Terminal:
+
+  a) Si no tienes Homebrew (https://brew.sh):
+       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+     y sigue las instrucciones que muestra al terminar (las líneas «Next steps»).
+
+  b) Instala ClamAV:
+       brew install clamav
+
+  c) En Garita, pulsa «Actualizar firmas» (descarga la base de virus, ~110 MB).
+
+
+OPCIONAL: ACCESO TOTAL AL DISCO
+-------------------------------
+Para escanear carpetas protegidas del sistema (Mail, Safari, otras cuentas…):
+Ajustes del Sistema → Privacidad y seguridad → Acceso total al disco → «+» →
+Aplicaciones → Garita.
+
+
+QUÉ HACE
+--------
+- Vigila Descargas y «aMule Downloads» y escanea cada archivo nuevo.
+- Escaneo a demanda: arrastrar a la ventana, botón, o clic derecho en el
+  Finder → «Escanear con Garita».
+- Cuarentena: mueve las amenazas a
+  ~/Library/Application Support/Garita/Cuarentena (restaurables).
+- Notificaciones e historial de avisos.

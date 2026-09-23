@@ -42,10 +42,23 @@ struct SeccionMotor: View {
         }
 
         // Instrucciones para lo primero que falte (de una en una, en orden).
-        if motor.clamscan == nil || motor.freshclam == nil {
+        if (motor.clamscan == nil || motor.freshclam == nil) && motor.homebrew == nil {
+            // Paso 1 de 2: sin Homebrew no se puede instalar ClamAV.
             Instruccion(
-                texto: "ClamAV no está instalado. Instálalo con Homebrew en la Terminal:",
-                comando: "brew install clamav")
+                texto: "Paso 1 de 2: ClamAV se instala con Homebrew, que no está en este Mac. Pega esto en la app Terminal y sigue sus instrucciones:",
+                comando: #"/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)""#)
+            HStack {
+                Link("Qué es Homebrew (brew.sh)", destination: URL(string: "https://brew.sh/es/")!)
+                    .font(.caption)
+                Spacer()
+                Text("Al terminar, pulsa ↻").font(.caption).foregroundStyle(.secondary)
+            }
+        } else if motor.clamscan == nil || motor.freshclam == nil, let brew = motor.homebrew {
+            // Usamos la ruta completa de brew: en una Terminal recién instalada
+            // puede que "brew" aún no esté en el PATH.
+            Instruccion(
+                texto: "ClamAV no está instalado. Pega esto en la app Terminal y, al terminar, pulsa ↻:",
+                comando: "\(brew.path) install clamav")
         } else if !motor.configExiste || !motor.hayFirmas {
             // Ambas cosas las resuelve el botón "Actualizar firmas" (ver SeccionFirmas).
             Text("Pulsa «Actualizar firmas» para terminar de prepararlo.")

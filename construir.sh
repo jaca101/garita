@@ -1,19 +1,28 @@
 #!/bin/zsh
 # Compila Garita y la empaqueta como build/Garita.app (firma ad-hoc).
-# Uso:  ./construir.sh          → compila y empaqueta
+# Uso:  ./construir.sh          → compila y empaqueta (solo para la arquitectura de este Mac)
 #       ./construir.sh abrir    → además, lanza la app
+#       UNIVERSAL=1 ./construir.sh  → binario universal (Apple Silicon + Intel), lo usa empaquetar.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
 APP="build/Garita.app"
 
-echo "→ Compilando (release)…"
-swift build -c release
+# Arquitecturas: por defecto la de este Mac (más rápido para desarrollar).
+ARQUITECTURAS=()
+MODO="release"
+if [[ "${UNIVERSAL:-0}" == "1" ]]; then
+    ARQUITECTURAS=(--arch arm64 --arch x86_64)
+    MODO="release, universal"
+fi
+
+echo "→ Compilando ($MODO)…"
+swift build -c release "${ARQUITECTURAS[@]}"
 
 echo "→ Empaquetando $APP…"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$(swift build -c release --show-bin-path)/Garita" "$APP/Contents/MacOS/"
+cp "$(swift build -c release "${ARQUITECTURAS[@]}" --show-bin-path)/Garita" "$APP/Contents/MacOS/"
 cp Recursos/Info.plist "$APP/Contents/"
 
 echo "→ Generando el icono desde Recursos/Icono-1024.png…"

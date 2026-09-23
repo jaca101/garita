@@ -6,6 +6,8 @@ struct EstadoMotor {
     var clamscan: URL?
     /// Ruta a `freshclam` (el actualizador de firmas), o nil si no se encontró.
     var freshclam: URL?
+    /// Ruta a `brew` (Homebrew), para guiar la instalación de ClamAV si falta.
+    var homebrew: URL?
     /// Versión del motor, p. ej. "ClamAV 1.5.4".
     var version: String?
     /// Versión y fecha de la base de firmas (nil si aún no hay firmas).
@@ -56,6 +58,7 @@ enum MotorClamAV {
         var estado = EstadoMotor()
         estado.clamscan = buscarBinario("clamscan")
         estado.freshclam = buscarBinario("freshclam")
+        estado.homebrew = buscarBinario("brew")
 
         if let clamscan = estado.clamscan,
            let resultado = Proceso.ejecutar(clamscan, argumentos: ["--version"]) {
