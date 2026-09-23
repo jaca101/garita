@@ -1,0 +1,103 @@
+import AppKit
+import SwiftUI
+
+/// Muestra si ClamAV está listo y, si falta algo, qué hacer para arreglarlo.
+struct SeccionMotor: View {
+    @Environment(ModeloApp.self) private var modelo
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Motor ClamAV").font(.subheadline.bold())
+                Spacer()
+                Button("Comprobar", systemImage: "arrow.clockwise") {
+                    modelo.comprobarMotor()
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .help("Volver a comprobar")
+            }
+
+            if let motor = modelo.motor {
+                detalle(motor)
+            } else {
+                ProgressView().controlSize(.small)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func detalle(_ motor: EstadoMotor) -> some View {
+        Fila(ok: motor.clamscan != nil, texto: "clamscan", ruta: motor.clamscan?.path)
+        Fila(ok: motor.freshclam != nil, texto: "freshclam", ruta: motor.freshclam?.path)
+
+        if let version = motor.version {
+            Text(version).font(.caption).foregroundStyle(.secondary)
+        }
+
+        // Solo tiene sentido revisar configuración y firmas si freshclam existe.
+        if motor.freshclam != nil {
+            Fila(ok: motor.configExiste, texto: "freshclam.conf", ruta: motor.configFreshclam?.path)
+            Fila(ok: motor.hayFirmas, texto: "Base de firmas", ruta: motor.carpetaFirmas?.path)
+        }
+
+        // Instrucciones para lo primero que falte (de una en una, en orden).
+        if motor.clamscan == nil || motor.freshclam == nil {
+            Instruccion(
+                texto: "ClamAV no está instalado. Instálalo con Homebrew en la Terminal:",
+                comando: "brew install clamav")
+        } else if !motor.configExiste || !motor.hayFirmas {
+            // Ambas cosas las resuelve el botón "Actualizar firmas" (ver SeccionFirmas).
+            Text("Pulsa «Actualizar firmas» para terminar de prepararlo.")
+                .font(.callout)
+                .foregroundStyle(.orange)
+        } else {
+            Label("Listo para escanear", systemImage: "checkmark.shield.fill")
+                .foregroundStyle(.green)
+        }
+    }
+}
+
+/// Una línea de comprobación: ✓/✗ + nombre, con la ruta como ayuda al pasar el ratón.
+private struct Fila: View {
+    let ok: Bool
+    let texto: String
+    let ruta: String?
+
+    var body: some View {
+        Label {
+            Text(texto)
+        } icon: {
+            Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(ok ? .green : .red)
+        }
+        .help(ruta ?? "No encontrado")
+    }
+}
+
+/// Explicación + comando para pegar en la Terminal, con botón de copiar.
+private struct Instruccion: View {
+    let texto: String
+    let comando: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(texto).font(.callout)
+            HStack(alignment: .top) {
+                Text(comando)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Copiar", systemImage: "doc.on.doc") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(comando, forType: .string)
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .help("Copiar al portapapeles")
+            }
+            .padding(8)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+        }
+    }
+}
