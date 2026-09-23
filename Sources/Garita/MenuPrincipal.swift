@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Contenido principal de Garita. Se usa en dos sitios: el panel que se
 /// despliega desde la barra de menú y la ventana "Garita".
-/// Iremos añadiendo secciones: vigilante y cuarentena.
+/// Falta añadir la sección del vigilante.
 struct MenuPrincipal: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -12,6 +12,10 @@ struct MenuPrincipal: View {
             Divider()
 
             SeccionEscaneo()
+
+            Divider()
+
+            SeccionCuarentena()
 
             Divider()
 

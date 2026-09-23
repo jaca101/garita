@@ -76,6 +76,7 @@ struct SeccionEscaneo: View {
 
 /// Resumen del último escaneo: limpio, amenazas encontradas o problemas.
 private struct VistaResultado: View {
+    @Environment(ModeloApp.self) private var modelo
     let resultado: ResultadoEscaneo
     /// Cuántos archivos ilegibles listar como mucho.
     private let maxProblemas = 5
@@ -99,6 +100,11 @@ private struct VistaResultado: View {
                     .foregroundStyle(.red)
                     .bold()
                 Text(resumen).font(.caption).foregroundStyle(.secondary)
+                if n > 1 && resultado.detecciones.contains(where: { !$0.aislada }) {
+                    Button("Poner todas en cuarentena", systemImage: "lock.shield") {
+                        modelo.aislarTodas()
+                    }
+                }
                 ForEach(resultado.detecciones) { deteccion in
                     FilaDeteccion(deteccion: deteccion)
                 }
@@ -137,8 +143,10 @@ private struct VistaResultado: View {
     }
 }
 
-/// Una amenaza: nombre del archivo, nombre del virus y botón para verlo en el Finder.
+/// Una amenaza: nombre del archivo, nombre del virus, botón para verlo en el
+/// Finder y botón para ponerlo en cuarentena.
 private struct FilaDeteccion: View {
+    @Environment(ModeloApp.self) private var modelo
     let deteccion: Deteccion
 
     var body: some View {
@@ -149,12 +157,22 @@ private struct FilaDeteccion: View {
             }
             .help(deteccion.archivo.path)
             Spacer()
-            Button("Mostrar en el Finder", systemImage: "magnifyingglass") {
-                NSWorkspace.shared.activateFileViewerSelecting([deteccion.archivo])
+            if deteccion.aislada {
+                Label("En cuarentena", systemImage: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button("Mostrar en el Finder", systemImage: "magnifyingglass") {
+                    NSWorkspace.shared.activateFileViewerSelecting([deteccion.archivo])
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .help("Mostrar en el Finder")
+
+                Button("Aislar") { modelo.aislar(deteccion) }
+                    .controlSize(.small)
+                    .help("Mover a la cuarentena")
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .help("Mostrar en el Finder")
         }
         .padding(6)
         .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))

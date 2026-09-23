@@ -36,6 +36,11 @@ final class ModeloApp {
     private var pidEscaneo: Int32?
     private var escaneoCancelado = false
 
+    /// Archivos en cuarentena, lo más reciente primero.
+    var cuarentena: [ElementoCuarentena] = Cuarentena.listar()
+    /// Último error al aislar, restaurar o eliminar (para mostrarlo en el panel).
+    var errorCuarentena: String?
+
     /// ¿Hay algo que el usuario deba resolver? (motor incompleto o firmas antiguas)
     var necesitaAtencion: Bool {
         guard let motor else { return false }
@@ -124,5 +129,53 @@ final class ModeloApp {
         guard let pidEscaneo else { return }
         escaneoCancelado = true
         Proceso.detener(pid: pidEscaneo)
+    }
+
+    // MARK: - Cuarentena
+
+    /// Mueve a la cuarentena un archivo detectado en el último escaneo.
+    func aislar(_ deteccion: Deteccion) {
+        errorCuarentena = nil
+        do {
+            let elemento = try Cuarentena.aislar(deteccion.archivo, amenaza: deteccion.amenaza)
+            cuarentena.insert(elemento, at: 0)
+            // Marcamos la detección como aislada para que el panel lo refleje.
+            if let i = resultadoEscaneo?.detecciones.firstIndex(where: { $0.id == deteccion.id }) {
+                resultadoEscaneo?.detecciones[i].aislada = true
+            }
+        } catch {
+            errorCuarentena = "No se pudo aislar \(deteccion.archivo.lastPathComponent): \(error.localizedDescription)"
+        }
+    }
+
+    /// Aísla todas las detecciones del último escaneo que aún no lo estén.
+    func aislarTodas() {
+        for deteccion in resultadoEscaneo?.detecciones ?? [] where !deteccion.aislada {
+            aislar(deteccion)
+        }
+    }
+
+    /// Devuelve un archivo a su sitio y lo muestra en el Finder.
+    func restaurar(_ elemento: ElementoCuarentena) -> URL? {
+        errorCuarentena = nil
+        do {
+            let destino = try Cuarentena.restaurar(elemento)
+            cuarentena.removeAll { $0.id == elemento.id }
+            return destino
+        } catch {
+            errorCuarentena = "No se pudo restaurar \(elemento.nombreOriginal): \(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    /// Borra definitivamente un archivo de la cuarentena.
+    func eliminar(_ elemento: ElementoCuarentena) {
+        errorCuarentena = nil
+        do {
+            try Cuarentena.eliminar(elemento)
+            cuarentena.removeAll { $0.id == elemento.id }
+        } catch {
+            errorCuarentena = "No se pudo eliminar \(elemento.nombreOriginal): \(error.localizedDescription)"
+        }
     }
 }

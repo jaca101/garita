@@ -5,6 +5,8 @@ struct Deteccion: Identifiable {
     let id = UUID()
     let archivo: URL
     let amenaza: String   // p. ej. "Eicar-Test-Signature"
+    /// true cuando ya se ha movido a la cuarentena.
+    var aislada = false
 }
 
 /// Resultado completo de un escaneo.
