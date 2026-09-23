@@ -20,6 +20,29 @@
     <string>15.0</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>es</string>
+    <!-- Clic derecho en el Finder → "Escanear con Garita" (ver ServicioFinder.swift).
+         NSMessage es el nombre del método que recibe los archivos;
+         public.item abarca cualquier archivo o carpeta. -->
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Escanear con Garita</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>escanearConGarita</string>
+            <key>NSPortName</key>
+            <string>Garita</string>
+            <key>NSSendFileTypes</key>
+            <array>
+                <string>public.item</string>
+            </array>
+            <key>NSRequiredContext</key>
+            <dict/>
+        </dict>
+    </array>
     <!-- Sin icono en el Dock: la app vive solo en la barra de menú. -->
     <key>LSUIElement</key>
     <true/>

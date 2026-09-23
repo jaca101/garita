@@ -1,12 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Escaneo bajo demanda: zona para soltar archivos (o hacer clic y elegirlos)
-/// y el resultado del último escaneo.
+/// Escaneo bajo demanda: botón para elegir archivos o carpetas y el resultado
+/// del último escaneo. (También se puede escanear desde el Finder con clic
+/// derecho → "Escanear con Garita"; ver ServicioFinder.swift.)
 struct SeccionEscaneo: View {
     @Environment(ModeloApp.self) private var modelo
-    /// true mientras el usuario arrastra algo por encima de la zona.
-    @State private var arrastrandoEncima = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -15,7 +14,7 @@ struct SeccionEscaneo: View {
             if modelo.escaneando {
                 enCurso
             } else {
-                zonaParaSoltar
+                botonElegir
             }
 
             if let resultado = modelo.resultadoEscaneo, !modelo.escaneando {
@@ -39,34 +38,20 @@ struct SeccionEscaneo: View {
         }
     }
 
-    /// Rectángulo punteado: se puede soltar encima o hacer clic para elegir.
-    private var zonaParaSoltar: some View {
-        let activo = modelo.motor?.listo == true
-
-        return Button {
-            elegirArchivos()
-        } label: {
-            VStack(spacing: 4) {
-                Image(systemName: "arrow.down.doc").font(.title2)
-                Text("Suelta aquí archivos o carpetas")
-                Text("o haz clic para elegirlos").font(.caption).foregroundStyle(.secondary)
+    /// Botón que abre el selector de archivos.
+    private var botonElegir: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                elegirArchivos()
+            } label: {
+                Label("Escanear archivo o carpeta…", systemImage: "doc.viewfinder")
+                    .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, minHeight: 80)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [5]))
-                    .foregroundStyle(arrastrandoEncima ? Color.accentColor : .secondary)
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(!activo)
-        .opacity(activo ? 1 : 0.4)
-        .dropDestination(for: URL.self) { urls, _ in
-            modelo.escanear(urls)
-            return true
-        } isTargeted: { encima in
-            arrastrandoEncima = encima
+            .controlSize(.large)
+            .disabled(modelo.motor?.listo != true)
+
+            Text("También desde el Finder: clic derecho → Escanear con Garita")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -92,6 +77,8 @@ struct SeccionEscaneo: View {
 /// Resumen del último escaneo: limpio, amenazas encontradas o problemas.
 private struct VistaResultado: View {
     let resultado: ResultadoEscaneo
+    /// Cuántos archivos ilegibles listar como mucho.
+    private let maxProblemas = 5
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -101,25 +88,37 @@ private struct VistaResultado: View {
             } else if let fallo = resultado.fallo {
                 Label(fallo, systemImage: "xmark.octagon.fill").foregroundStyle(.red)
             } else if resultado.detecciones.isEmpty {
-                Label("Limpio · \(resumen)", systemImage: "checkmark.shield.fill")
+                Label("Limpio", systemImage: "checkmark.shield.fill")
                     .foregroundStyle(.green)
+                    .bold()
+                Text(resumen).font(.caption).foregroundStyle(.secondary)
             } else {
-                Label("\(resultado.detecciones.count) amenaza(s) encontrada(s) · \(resumen)",
+                let n = resultado.detecciones.count
+                Label(n == 1 ? "1 amenaza encontrada" : "\(n) amenazas encontradas",
                       systemImage: "exclamationmark.shield.fill")
                     .foregroundStyle(.red)
                     .bold()
+                Text(resumen).font(.caption).foregroundStyle(.secondary)
                 ForEach(resultado.detecciones) { deteccion in
                     FilaDeteccion(deteccion: deteccion)
                 }
             }
 
             if !resultado.problemas.isEmpty {
-                DisclosureGroup("\(resultado.problemas.count) archivo(s) no se pudieron leer") {
-                    ForEach(resultado.problemas, id: \.self) { problema in
-                        Text(problema).font(.caption).textSelection(.enabled)
+                // Lista visible (sin desplegable: la ventana no se redimensiona al
+                // desplegar). Como mucho `maxProblemas` líneas, para no hacerla enorme.
+                let n = resultado.problemas.count
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(n == 1 ? "1 archivo no se pudo leer" : "\(n) archivos no se pudieron leer",
+                          systemImage: "exclamationmark.triangle.fill")
+                    ForEach(resultado.problemas.prefix(maxProblemas), id: \.self) { problema in
+                        Text(problema).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
+                    }
+                    if n > maxProblemas {
+                        Text("y \(n - maxProblemas) más")
                     }
                     Text("Si son de carpetas protegidas, Garita necesita Acceso total al disco.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .font(.caption)
                 .foregroundStyle(.orange)
@@ -127,10 +126,14 @@ private struct VistaResultado: View {
         }
     }
 
-    /// "12 archivos en 7 s"
+    /// "12 archivos analizados en 7 s"
     private var resumen: String {
-        let archivos = resultado.archivosAnalizados.map { "\($0) archivo(s)" } ?? "?"
-        return "\(archivos) en \(Int(resultado.duracion.rounded())) s"
+        let segundos = "en \(Int(resultado.duracion.rounded())) s"
+        switch resultado.archivosAnalizados {
+        case 1?: return "1 archivo analizado \(segundos)"
+        case let n?: return "\(n) archivos analizados \(segundos)"
+        case nil: return "Escaneo terminado \(segundos)"
+        }
     }
 }
 

@@ -26,6 +26,12 @@ final class ModeloApp {
     var rutasEscaneo: [URL] = []
     /// Resultado del último escaneo a demanda.
     var resultadoEscaneo: ResultadoEscaneo?
+    /// Rutas que llegaron mientras no se podía escanear (motor aún sin detectar
+    /// o escaneo en curso). Se escanean en cuanto se pueda.
+    private var pendientes: [URL] = []
+    /// Se incrementa para pedir que se abra la ventana (lo vigila IconoBarra,
+    /// que es quien puede abrir ventanas de SwiftUI).
+    var peticionesDeVentana = 0
     /// PID de clamscan mientras escanea, para poder cancelarlo.
     private var pidEscaneo: Int32?
     private var escaneoCancelado = false
@@ -47,6 +53,7 @@ final class ModeloApp {
     func comprobarMotor() {
         Task {
             motor = await Task.detached { MotorClamAV.detectar() }.value
+            escanearPendientes()
         }
     }
 
@@ -71,8 +78,13 @@ final class ModeloApp {
 
     /// Escanea archivos o carpetas en segundo plano.
     func escanear(_ rutas: [URL]) {
-        guard let clamscan = motor?.clamscan, motor?.listo == true,
-              !escaneando, !rutas.isEmpty else { return }
+        guard !rutas.isEmpty else { return }
+        // Si aún no se puede, lo guardamos para después (p. ej. el Finder ha
+        // arrancado Garita con "Escanear con Garita" y el motor no está detectado).
+        guard let clamscan = motor?.clamscan, motor?.listo == true, !escaneando else {
+            pendientes += rutas
+            return
+        }
         escaneando = true
         escaneoCancelado = false
         rutasEscaneo = rutas
@@ -88,7 +100,23 @@ final class ModeloApp {
             pidEscaneo = nil
             escaneando = false
             resultadoEscaneo = resultado
+            escanearPendientes()
         }
+    }
+
+    /// Escanea, todas juntas, las rutas que quedaron a la espera.
+    private func escanearPendientes() {
+        guard !pendientes.isEmpty, motor?.listo == true, !escaneando else { return }
+        let rutas = pendientes
+        pendientes = []
+        escanear(rutas)
+    }
+
+    /// Escaneo pedido desde el Finder (clic derecho → "Escanear con Garita").
+    /// Abre la ventana para que se vea el progreso y el resultado.
+    func escanearDesdeFinder(_ rutas: [URL]) {
+        peticionesDeVentana += 1
+        escanear(rutas)
     }
 
     /// Detiene el escaneo en curso.
