@@ -65,7 +65,7 @@ struct GaritaApp: App {
     }
 }
 
-/// El icono de la barra: escudo normal si todo va bien, escudo con aviso si no.
+/// El icono de la barra: escudo con "G" si todo va bien, con "!" si no.
 ///
 /// Además, es la única vista que existe desde el arranque (el panel no se crea
 /// hasta que se pulsa el icono), así que desde aquí se abre la ventana cuando toca.
@@ -74,7 +74,8 @@ private struct IconoBarra: View {
     @Environment(\.openWindow) private var abrirVentana
 
     var body: some View {
-        Image(systemName: modelo.necesitaAtencion ? "exclamationmark.shield.fill" : "shield.lefthalf.filled")
+        // Escudo con "G", o con "!" si hay algo que resolver (ver DibujoIcono.swift).
+        Image(nsImage: DibujoIcono.barra(aviso: modelo.necesitaAtencion))
             .onChange(of: modelo.motor == nil, initial: true) {
                 // Esperamos a que termine la primera detección, y revisamos una sola vez.
                 guard modelo.motor != nil, !modelo.revisionInicialHecha else { return }

@@ -10,6 +10,8 @@
     <string>local.garita</string>
     <key>CFBundleExecutable</key>
     <string>Garita</string>
+    <key>CFBundleIconFile</key>
+    <string>Garita</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

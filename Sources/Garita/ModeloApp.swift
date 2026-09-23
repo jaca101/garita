@@ -41,10 +41,37 @@ final class ModeloApp {
     /// Último error al aislar, restaurar o eliminar (para mostrarlo en el panel).
     var errorCuarentena: String?
 
-    /// ¿Hay algo que el usuario deba resolver? (motor incompleto o firmas antiguas)
+    // MARK: Vigilante (la lógica está en ModeloApp+Vigilante.swift)
+
+    /// Vigilar las carpetas de descargas (se guarda entre arranques).
+    var vigilanteActivo = UserDefaults.standard.object(forKey: "vigilanteActivo") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(vigilanteActivo, forKey: "vigilanteActivo")
+            aplicarVigilante()
+        }
+    }
+    /// Si el vigilante detecta una amenaza: true = aislarla al momento; false = solo avisar.
+    var aislarAutomaticamente = UserDefaults.standard.object(forKey: "aislarAutomaticamente") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(aislarAutomaticamente, forKey: "aislarAutomaticamente") }
+    }
+    /// Carpetas vigiladas (de las predeterminadas, las que existen).
+    var carpetasVigiladas: [URL] = ModeloApp.carpetasPorDefecto.filter {
+        FileManager.default.fileExists(atPath: $0.path)
+    }
+    /// Lo que ha hecho el vigilante, lo más reciente primero.
+    var actividad: [EventoVigilante] = []
+    /// Archivos que el vigilante está escaneando ahora (vacío si no hay ninguno).
+    var vigilanteEscaneando: [URL] = []
+    /// Archivos nuevos a la espera de escanear (p. ej. mientras otro lote está en marcha).
+    @ObservationIgnored var colaVigilante: [URL] = []
+    @ObservationIgnored var vigilante: Vigilante?
+
+    /// ¿Hay algo que el usuario deba resolver? Motor incompleto, firmas antiguas
+    /// o amenazas del vigilante sin aislar.
     var necesitaAtencion: Bool {
         guard let motor else { return false }
         return !motor.listo || motor.firmasAntiguas
+            || actividad.contains { $0.pendienteDeResolver }
     }
 
     /// Para revisar solo una vez, al arrancar, si hay que abrir la ventana.
@@ -52,6 +79,10 @@ final class ModeloApp {
 
     init() {
         comprobarMotor()
+        vigilante = Vigilante { [weak self] archivos in
+            self?.recibirDelVigilante(archivos)
+        }
+        aplicarVigilante()
     }
 
     /// Vuelve a detectar ClamAV en segundo plano, sin bloquear la interfaz.
@@ -59,6 +90,7 @@ final class ModeloApp {
         Task {
             motor = await Task.detached { MotorClamAV.detectar() }.value
             escanearPendientes()
+            escanearColaVigilante()
         }
     }
 
@@ -166,6 +198,8 @@ final class ModeloApp {
         do {
             let destino = try Cuarentena.restaurar(elemento)
             cuarentena.removeAll { $0.id == elemento.id }
+            // Si vuelve a una carpeta vigilada, que el vigilante no lo aísle otra vez.
+            vigilante?.ignorarUnaVez(destino)
             return destino
         } catch {
             errorCuarentena = "No se pudo restaurar \(elemento.nombreOriginal): \(error.localizedDescription)"

@@ -9,11 +9,20 @@ struct Deteccion: Identifiable {
     var aislada = false
 }
 
+/// Un archivo que no se pudo analizar (o no del todo), con el motivo.
+struct Problema: Hashable {
+    let archivo: URL
+    let motivo: String    // p. ej. "Access denied" o "no analizado: demasiado grande"
+
+    /// "archivo.zip: Access denied"
+    var descripcion: String { "\(archivo.lastPathComponent): \(motivo)" }
+}
+
 /// Resultado completo de un escaneo.
 struct ResultadoEscaneo {
     var detecciones: [Deteccion] = []
-    /// Archivos que clamscan no pudo leer (p. ej. "Access denied"), con el motivo.
-    var problemas: [String] = []
+    /// Archivos que clamscan no pudo leer o no analizó enteros.
+    var problemas: [Problema] = []
     /// Número de archivos analizados, según el resumen de clamscan.
     var archivosAnalizados: Int?
     var duracion: TimeInterval = 0
@@ -24,6 +33,15 @@ struct ResultadoEscaneo {
 
 /// Escanea archivos y carpetas con `clamscan`.
 enum Escaner {
+
+    /// Límites de tamaño. Por defecto clamscan se salta SIN AVISAR los archivos de
+    /// más de 100 MB; los subimos a 2 GB y le pedimos que avise de lo que se salte
+    /// (sale como "Heuristics.Limits.Exceeded… FOUND", que tratamos como problema).
+    static let opcionesLimites = [
+        "--max-filesize=2000M",
+        "--max-scansize=2000M",
+        "--alert-exceeds-max=yes",
+    ]
 
     /// Escanea las rutas dadas (archivos o carpetas, recursivamente).
     /// Bloquea hasta que termina: llamarla fuera del hilo principal.
@@ -37,7 +55,7 @@ enum Escaner {
 
         // -r: entrar en subcarpetas. No usamos --infected porque entonces clamscan
         // no dice qué archivos no pudo leer; filtramos nosotros las líneas "OK".
-        let argumentos = ["-r"] + rutas.map(\.path)
+        let argumentos = ["-r"] + opcionesLimites + rutas.map(\.path)
 
         guard let proceso = Proceso.ejecutar(clamscan, argumentos: argumentos, alArrancar: alArrancar) else {
             return ResultadoEscaneo(fallo: "No se pudo ejecutar clamscan.")
@@ -84,13 +102,29 @@ enum Escaner {
             let ruta = String(linea[..<separador.lowerBound])
             let estado = String(linea[separador.upperBound...])
 
+            let archivo = URL(filePath: ruta)
             if estado.hasSuffix(" FOUND") {
                 let amenaza = String(estado.dropLast(" FOUND".count))
-                resultado.detecciones.append(Deteccion(archivo: URL(filePath: ruta), amenaza: amenaza))
+                if amenaza.hasPrefix("Heuristics.Limits.Exceeded") {
+                    // No es un virus: el archivo supera los límites y no se analizó entero.
+                    resultado.problemas.append(Problema(archivo: archivo, motivo: motivoLimite(amenaza)))
+                } else {
+                    resultado.detecciones.append(Deteccion(archivo: archivo, amenaza: amenaza))
+                }
+            } else if estado.contains("Virus(es) detected") {
+                // Línea extra que clamscan añade tras un aviso de límites: ya contada.
+                continue
             } else if !["OK", "Empty file", "Symbolic link", "Excluded"].contains(estado) {
-                resultado.problemas.append("\(URL(filePath: ruta).lastPathComponent): \(estado)")
+                resultado.problemas.append(Problema(archivo: archivo, motivo: estado))
             }
         }
         return resultado
+    }
+
+    /// Traduce el aviso de límites de clamscan a algo legible.
+    private static func motivoLimite(_ aviso: String) -> String {
+        if aviso.hasSuffix("MaxFileSize") { return "no analizado: más de 2 GB" }
+        if aviso.hasSuffix("MaxScanSize") { return "analizado solo en parte: más de 2 GB descomprimido" }
+        return "analizado solo en parte: límite de ClamAV (\(aviso))"
     }
 }

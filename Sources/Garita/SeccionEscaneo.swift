@@ -156,15 +156,15 @@ private struct VistaResultado: View {
                 // desplegar). Como mucho `maxProblemas` líneas, para no hacerla enorme.
                 let n = resultado.problemas.count
                 VStack(alignment: .leading, spacing: 4) {
-                    Label(n == 1 ? "1 archivo no se pudo leer" : "\(n) archivos no se pudieron leer",
+                    Label(n == 1 ? "1 archivo sin analizar del todo" : "\(n) archivos sin analizar del todo",
                           systemImage: "exclamationmark.triangle.fill")
                     ForEach(resultado.problemas.prefix(maxProblemas), id: \.self) { problema in
-                        Text(problema).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
+                        Text(problema.descripcion).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
                     }
                     if n > maxProblemas {
                         Text("y \(n - maxProblemas) más")
                     }
-                    Text("Si son de carpetas protegidas, Garita necesita Acceso total al disco.")
+                    Text("«Access denied» en carpetas protegidas: Garita necesita Acceso total al disco.")
                         .foregroundStyle(.secondary)
                 }
                 .font(.caption)
