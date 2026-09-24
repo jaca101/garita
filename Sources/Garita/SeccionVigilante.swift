@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 
 /// El vigilante de descargas: interruptor, carpetas, modo y actividad reciente.
@@ -37,6 +38,23 @@ struct SeccionVigilante: View {
                 .font(.callout)
                 .disabled(!modelo.vigilanteActivo)
                 .help("Si está desactivado, Garita solo avisa y tú decides si aislar")
+
+            Toggle("Abrir Garita al iniciar sesión", isOn: Binding(
+                get: { modelo.abrirAlIniciar },
+                set: { modelo.cambiarAbrirAlIniciar($0) }))
+                .font(.callout)
+                .help("Garita se abrirá sola al encender el Mac (Ajustes → General → Ítems de inicio)")
+            if modelo.inicioRequiereAprobacion {
+                HStack {
+                    Text("macOS pide aprobarlo en Ítems de inicio.")
+                        .font(.caption).foregroundStyle(.orange)
+                    Button("Abrir Ajustes…") { SMAppService.openSystemSettingsLoginItems() }
+                        .controlSize(.small)
+                }
+            }
+            if let error = modelo.errorInicio {
+                Text("No se pudo cambiar: \(error)").font(.caption).foregroundStyle(.red)
+            }
 
             estado
 

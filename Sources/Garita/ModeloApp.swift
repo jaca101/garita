@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import ServiceManagement
 
 /// Estado compartido de toda la app. Las vistas lo leen y se redibujan solas
 /// cuando cambia (gracias a @Observable).
@@ -91,6 +92,12 @@ final class ModeloApp {
         didSet { UserDefaults.standard.set(bienvenidaVista, forKey: "bienvenidaVista") }
     }
 
+    /// ¿Se abre Garita al iniciar sesión? (ítem de inicio de macOS, vía SMAppService)
+    var abrirAlIniciar = SMAppService.mainApp.status == .enabled
+    /// macOS pide aprobarlo en Ajustes → General → Ítems de inicio.
+    var inicioRequiereAprobacion = SMAppService.mainApp.status == .requiresApproval
+    var errorInicio: String?
+
     /// Para revisar solo una vez, al arrancar, si hay que abrir la ventana.
     var revisionInicialHecha = false
 
@@ -101,6 +108,7 @@ final class ModeloApp {
         }
         aplicarVigilante()
         comprobarNotificaciones()
+        configurarInicioLaPrimeraVez()
 
         // Al volver a Garita (p. ej. desde Ajustes), revisamos el Acceso total al disco.
         NotificationCenter.default.addObserver(
@@ -108,6 +116,36 @@ final class ModeloApp {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.comprobarAccesoTotal() }
         }
+    }
+
+    // MARK: - Abrir al iniciar sesión
+
+    /// Activa o desactiva que Garita se abra al iniciar sesión.
+    func cambiarAbrirAlIniciar(_ activar: Bool) {
+        errorInicio = nil
+        do {
+            if activar {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            errorInicio = error.localizedDescription
+        }
+        let estado = SMAppService.mainApp.status
+        abrirAlIniciar = estado == .enabled
+        inicioRequiereAprobacion = estado == .requiresApproval
+    }
+
+    /// La primera vez que Garita se abre desde /Applications, la apuntamos para
+    /// que arranque al iniciar sesión (un antivirus debe estar siempre en marcha).
+    /// Solo una vez: si luego el usuario lo desactiva, se respeta.
+    private func configurarInicioLaPrimeraVez() {
+        let clave = "inicioConfigurado"
+        guard Bundle.main.bundlePath.hasPrefix("/Applications/"),
+              !UserDefaults.standard.bool(forKey: clave) else { return }
+        UserDefaults.standard.set(true, forKey: clave)
+        cambiarAbrirAlIniciar(true)
     }
 
     func comprobarAccesoTotal() {
