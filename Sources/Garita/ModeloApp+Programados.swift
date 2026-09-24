@@ -46,13 +46,17 @@ extension ModeloApp {
         guard tareaEnCurso == nil, let clamscan = motor?.clamscan, motor?.listo == true else { return }
         tareaEnCurso = tarea.id
         programadoCancelado = false
+        progresoProgramado = ProgresoEscaneo()
 
         Task {
             var resultado = await Task.detached {
-                Escaner.escanear([tarea.url], con: clamscan, prioridadBaja: true) { pid in
+                Escaner.escanear([tarea.url], con: clamscan, prioridadBaja: true, alArrancar: { pid in
                     Task { @MainActor in self.pidProgramado = pid }
-                }
+                }, alAvanzar: { archivos, ultimo in
+                    Task { @MainActor in self.progresoProgramado?.avanzar(archivos, ultimo) }
+                })
             }.value
+            progresoProgramado = nil
             resultado.cancelado = programadoCancelado
             pidProgramado = nil
             terminar(tarea, con: resultado)

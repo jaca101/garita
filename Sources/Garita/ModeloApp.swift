@@ -2,6 +2,18 @@ import AppKit
 import Observation
 import ServiceManagement
 
+/// Cómo va un escaneo largo: desde cuándo, cuántos archivos y cuál fue el último.
+struct ProgresoEscaneo {
+    var inicio = Date()
+    var archivos = 0
+    var ultimo: String?
+
+    mutating func avanzar(_ archivos: Int, _ ultimo: String) {
+        self.archivos = archivos
+        self.ultimo = ultimo
+    }
+}
+
 /// Estado compartido de toda la app. Las vistas lo leen y se redibujan solas
 /// cuando cambia (gracias a @Observable).
 @MainActor
@@ -33,6 +45,8 @@ final class ModeloApp {
     /// Se incrementa para pedir que se abra la ventana (lo vigila IconoBarra,
     /// que es quien puede abrir ventanas de SwiftUI).
     var peticionesDeVentana = 0
+    /// Progreso del escaneo a demanda en curso (nil si no hay ninguno).
+    var progresoEscaneo: ProgresoEscaneo?
     /// PID de clamscan mientras escanea, para poder cancelarlo.
     private var pidEscaneo: Int32?
     private var escaneoCancelado = false
@@ -89,6 +103,8 @@ final class ModeloApp {
     var programados: [TareaProgramada] = Programados.cargar()
     /// La tarea que se está ejecutando ahora (nil si ninguna).
     var tareaEnCurso: UUID?
+    /// Progreso de la tarea en curso.
+    var progresoProgramado: ProgresoEscaneo?
     /// Tarea abierta en el editor ("Programar escaneo").
     var borradorTarea: TareaProgramada?
     @ObservationIgnored var pidProgramado: Int32?
@@ -213,13 +229,17 @@ final class ModeloApp {
         escaneoCancelado = false
         rutasEscaneo = rutas
         resultadoEscaneo = nil
+        progresoEscaneo = ProgresoEscaneo()
 
         Task {
             var resultado = await Task.detached {
-                Escaner.escanear(rutas, con: clamscan) { pid in
+                Escaner.escanear(rutas, con: clamscan, alArrancar: { pid in
                     Task { @MainActor in self.pidEscaneo = pid }
-                }
+                }, alAvanzar: { archivos, ultimo in
+                    Task { @MainActor in self.progresoEscaneo?.avanzar(archivos, ultimo) }
+                })
             }.value
+            progresoEscaneo = nil
             resultado.cancelado = escaneoCancelado
             pidEscaneo = nil
             escaneando = false

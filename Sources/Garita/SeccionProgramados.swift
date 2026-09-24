@@ -68,9 +68,11 @@ private struct FilaProgramada: View {
                 Text(tarea.descripcion)
                     .font(.caption).foregroundStyle(.secondary)
                 if enCurso {
-                    HStack(spacing: 4) {
+                    HStack(alignment: .top, spacing: 4) {
                         ProgressView().controlSize(.mini)
-                        Text("Escaneando…").font(.caption)
+                        if let progreso = modelo.progresoProgramado {
+                            VistaProgreso(progreso: progreso)
+                        }
                     }
                 } else if let resultado = tarea.ultimoResultado {
                     Text("Último: \(tarea.ultimaEjecucion.formatted(.relative(presentation: .named))) · \(resultado)")

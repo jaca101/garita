@@ -46,20 +46,40 @@ enum Escaner {
     /// Escanea las rutas dadas (archivos o carpetas, recursivamente).
     /// Bloquea hasta que termina: llamarla fuera del hilo principal.
     /// `alArrancar` recibe el PID de clamscan, para poder cancelarlo.
+    ///
+    /// `alAvanzar` recibe, como mucho 4 veces por segundo, cuántos archivos van
+    /// analizados y el nombre del último (clamscan escribe una línea por archivo
+    /// al terminarlo).
     static func escanear(
         _ rutas: [URL],
         con clamscan: URL,
         prioridadBaja: Bool = false,
-        alArrancar: @escaping @Sendable (Int32) -> Void
+        alArrancar: @escaping @Sendable (Int32) -> Void,
+        alAvanzar: @escaping @Sendable (_ archivos: Int, _ ultimo: String) -> Void = { _, _ in }
     ) -> ResultadoEscaneo {
         let inicio = Date()
+        var analizados = 0
+        var ultimoAviso = Date.distantPast
+        var enResumen = false
 
         // -r: entrar en subcarpetas. No usamos --infected porque entonces clamscan
         // no dice qué archivos no pudo leer; filtramos nosotros las líneas "OK".
         let argumentos = ["-r"] + opcionesLimites + rutas.map(\.path)
 
-        guard let proceso = Proceso.ejecutar(clamscan, argumentos: argumentos,
-                                              prioridadBaja: prioridadBaja, alArrancar: alArrancar) else {
+        guard let proceso = Proceso.ejecutar(
+            clamscan, argumentos: argumentos, prioridadBaja: prioridadBaja, alArrancar: alArrancar,
+            alRecibirLinea: { linea in
+                // Cada línea "/ruta/archivo: estado" es un archivo terminado.
+                if linea.hasPrefix("----------- SCAN SUMMARY") { enResumen = true }
+                guard !enResumen, !linea.hasPrefix("LibClamAV"),
+                      let separador = linea.range(of: ": ", options: .backwards) else { return }
+                analizados += 1
+                // Para no saturar la interfaz, avisamos como mucho cada 0,25 s.
+                if Date().timeIntervalSince(ultimoAviso) > 0.25 {
+                    ultimoAviso = Date()
+                    alAvanzar(analizados, URL(filePath: String(linea[..<separador.lowerBound])).lastPathComponent)
+                }
+            }) else {
             return ResultadoEscaneo(fallo: "No se pudo ejecutar clamscan.")
         }
 

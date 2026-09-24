@@ -39,8 +39,9 @@ struct SeccionEscaneo: View {
             VStack(alignment: .leading) {
                 Text("Escaneando \(descripcion(modelo.rutasEscaneo))…")
                     .lineLimit(1).truncationMode(.middle)
-                Text("Cargar las firmas tarda unos segundos.")
-                    .font(.caption).foregroundStyle(.secondary)
+                if let progreso = modelo.progresoEscaneo {
+                    VistaProgreso(progreso: progreso)
+                }
             }
             Spacer()
             Button("Cancelar") { modelo.cancelarEscaneo() }
@@ -217,5 +218,37 @@ private struct FilaDeteccion: View {
         }
         .padding(6)
         .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+/// "127 archivos analizados · 3:05" y el último archivo terminado.
+/// El reloj se actualiza cada segundo aunque no lleguen archivos nuevos
+/// (p. ej. mientras clamscan revisa por dentro un .dmg grande).
+struct VistaProgreso: View {
+    let progreso: ProgresoEscaneo
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { contexto in
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(progreso.archivos == 1 ? "1 archivo analizado" : "\(progreso.archivos) archivos analizados") · \(tiempo(hasta: contexto.date))")
+                    .monospacedDigit()
+                if let ultimo = progreso.ultimo {
+                    Text("Último: \(ultimo)")
+                        .lineLimit(1).truncationMode(.middle)
+                } else {
+                    Text("Cargando las firmas…")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    /// "0:42" o "1:03:05"
+    private func tiempo(hasta ahora: Date) -> String {
+        let s = max(0, Int(ahora.timeIntervalSince(progreso.inicio)))
+        return s >= 3600
+            ? String(format: "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60)
+            : String(format: "%d:%02d", s / 60, s % 60)
     }
 }

@@ -18,11 +18,15 @@ enum Proceso {
     ///
     /// `prioridadBaja`: macOS le da la CPU y el disco solo cuando nadie más los
     /// necesita (calidad de servicio "background"), para no ralentizar el Mac.
+    ///
+    /// `alRecibirLinea` recibe cada línea de salida en cuanto llega (para mostrar
+    /// el progreso); se llama en este mismo hilo, mientras el programa trabaja.
     static func ejecutar(
         _ programa: URL,
         argumentos: [String],
         prioridadBaja: Bool = false,
-        alArrancar: (@Sendable (Int32) -> Void)? = nil
+        alArrancar: (@Sendable (Int32) -> Void)? = nil,
+        alRecibirLinea: (String) -> Void = { _ in }
     ) -> ResultadoProceso? {
         let proceso = Process()
         proceso.executableURL = programa
@@ -44,7 +48,20 @@ enum Proceso {
         }
         alArrancar?(proceso.processIdentifier)
 
-        let datos = tuberia.fileHandleForReading.readDataToEndOfFile()
+        // Leemos a trozos según va llegando (availableData espera hasta que hay
+        // algo, y devuelve vacío cuando el programa cierra su salida).
+        var datos = Data()
+        var pendiente = Data()       // trozo de línea aún sin "\n"
+        while true {
+            let trozo = tuberia.fileHandleForReading.availableData
+            if trozo.isEmpty { break }
+            datos.append(trozo)
+            pendiente.append(trozo)
+            while let salto = pendiente.firstIndex(of: UInt8(ascii: "\n")) {
+                alRecibirLinea(String(decoding: pendiente[..<salto], as: UTF8.self))
+                pendiente.removeSubrange(...salto)
+            }
+        }
         proceso.waitUntilExit()
 
         let texto = String(decoding: datos, as: UTF8.self)
