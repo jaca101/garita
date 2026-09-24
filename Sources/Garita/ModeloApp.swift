@@ -84,6 +84,18 @@ final class ModeloApp {
     /// abierta, Garita es app normal (Dock y ⌘Tab); con ninguna, solo barra de menú.
     @ObservationIgnored var ventanasAbiertas = 0
 
+    // MARK: Escaneos programados (la lógica está en ModeloApp+Programados.swift)
+
+    var programados: [TareaProgramada] = Programados.cargar()
+    /// La tarea que se está ejecutando ahora (nil si ninguna).
+    var tareaEnCurso: UUID?
+    /// Tarea abierta en el editor ("Programar escaneo").
+    var borradorTarea: TareaProgramada?
+    @ObservationIgnored var pidProgramado: Int32?
+    @ObservationIgnored var programadoCancelado = false
+    /// Arranque de Garita o último despertar del Mac (para dejar un margen).
+    @ObservationIgnored var despertoEn = Date()
+
     /// ¿Tiene Garita Acceso total al disco? Se vuelve a comprobar cada vez que
     /// Garita pasa a primer plano (p. ej. al volver de Ajustes del Sistema).
     var accesoTotal = AccesoDisco.concedido()
@@ -109,6 +121,7 @@ final class ModeloApp {
         aplicarVigilante()
         comprobarNotificaciones()
         configurarInicioLaPrimeraVez()
+        arrancarProgramador()
 
         // Al volver a Garita (p. ej. desde Ajustes), revisamos el Acceso total al disco.
         NotificationCenter.default.addObserver(
@@ -243,10 +256,10 @@ final class ModeloApp {
 
     // MARK: - Avisos
 
-    /// Apunta los avisos en el historial y los muestra como notificación.
-    /// Sin permiso para notificar, si alguno es importante (amenazas) abrimos la
-    /// ventana para que no pase desapercibido.
-    func avisar(_ avisos: [Aviso]) {
+    /// Apunta los avisos en el historial y (si `notificar`) los muestra como
+    /// notificación. Sin permiso para notificar, si alguno es importante
+    /// (amenazas) abrimos la ventana para que no pase desapercibido.
+    func avisar(_ avisos: [Aviso], notificar: Bool = true) {
         guard !avisos.isEmpty else { return }
         historial.insert(contentsOf: avisos, at: 0)
         if historial.count > Historial.maximo {
@@ -254,6 +267,7 @@ final class ModeloApp {
         }
         Historial.guardar(historial)
 
+        guard notificar else { return }
         if notificacionesPermitidas {
             avisos.forEach(Notificaciones.enviar)
         } else if avisos.contains(where: \.importante) {

@@ -68,6 +68,16 @@ struct GaritaApp: App {
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)
 
+        // Editor de escaneos programados (botón + y "Editar…" en su sección).
+        Window("Escaneo programado", id: "programar") {
+            VentanaProgramar()
+                .environment(modelo)
+                .onAppear { modelo.ventanaAbierta() }
+                .onDisappear { modelo.ventanaCerrada() }
+        }
+        .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+
         // Historial de avisos (botón 🕘 en la cabecera).
         Window("Historial de Garita", id: "historial") {
             VentanaHistorial()

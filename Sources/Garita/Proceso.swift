@@ -15,14 +15,21 @@ enum Proceso {
     ///
     /// `alArrancar`, si se indica, recibe el PID del proceso nada más arrancar,
     /// por si hay que detenerlo antes de tiempo (ver `detener`).
+    ///
+    /// `prioridadBaja`: macOS le da la CPU y el disco solo cuando nadie más los
+    /// necesita (calidad de servicio "background"), para no ralentizar el Mac.
     static func ejecutar(
         _ programa: URL,
         argumentos: [String],
+        prioridadBaja: Bool = false,
         alArrancar: (@Sendable (Int32) -> Void)? = nil
     ) -> ResultadoProceso? {
         let proceso = Process()
         proceso.executableURL = programa
         proceso.arguments = argumentos
+        if prioridadBaja {
+            proceso.qualityOfService = .background
+        }
 
         // Una sola tubería para stdout y stderr: así no se pierde ningún mensaje
         // y no hay riesgo de que el programa se atasque con una tubería llena.

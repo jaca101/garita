@@ -49,6 +49,7 @@ enum Escaner {
     static func escanear(
         _ rutas: [URL],
         con clamscan: URL,
+        prioridadBaja: Bool = false,
         alArrancar: @escaping @Sendable (Int32) -> Void
     ) -> ResultadoEscaneo {
         let inicio = Date()
@@ -57,7 +58,8 @@ enum Escaner {
         // no dice qué archivos no pudo leer; filtramos nosotros las líneas "OK".
         let argumentos = ["-r"] + opcionesLimites + rutas.map(\.path)
 
-        guard let proceso = Proceso.ejecutar(clamscan, argumentos: argumentos, alArrancar: alArrancar) else {
+        guard let proceso = Proceso.ejecutar(clamscan, argumentos: argumentos,
+                                              prioridadBaja: prioridadBaja, alArrancar: alArrancar) else {
             return ResultadoEscaneo(fallo: "No se pudo ejecutar clamscan.")
         }
 

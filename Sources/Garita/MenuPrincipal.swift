@@ -92,6 +92,10 @@ struct MenuPrincipal: View {
 
             Divider()
 
+            SeccionProgramados(cerrarDesplegable: enVentana ? nil : { cerrarDesplegable() })
+
+            Divider()
+
             SeccionFirmas()
 
             Divider()
