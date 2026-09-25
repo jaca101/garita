@@ -33,12 +33,16 @@ struct SeccionMotor: View {
         Fila(ok: motor.freshclam != nil, texto: "freshclam", ruta: motor.freshclam?.path)
 
         if let version = motor.version {
-            Text(version).font(.caption).foregroundStyle(.secondary)
+            Text(motor.integrado ? "\(version), integrado en Garita" : "\(version), de Homebrew")
+                .font(.caption).foregroundStyle(.secondary)
         }
 
         // Solo tiene sentido revisar configuración y firmas si freshclam existe.
+        // (Con el ClamAV integrado, Garita crea y mantiene su freshclam.conf.)
         if motor.freshclam != nil {
-            Fila(ok: motor.configExiste, texto: "freshclam.conf", ruta: motor.configFreshclam?.path)
+            if !motor.integrado {
+                Fila(ok: motor.configExiste, texto: "freshclam.conf", ruta: motor.configFreshclam?.path)
+            }
             Fila(ok: motor.hayFirmas, texto: "Base de firmas", ruta: motor.carpetaFirmas?.path)
         }
 
@@ -74,8 +78,12 @@ struct SeccionMotor: View {
             Instruccion(
                 texto: "ClamAV no está instalado. Pega esto en la app Terminal y, al terminar, pulsa ↻:",
                 comando: "\(brew.path) install clamav")
-        } else if !motor.configExiste || !motor.hayFirmas {
-            // Ambas cosas las resuelve el botón "Actualizar firmas" (ver SeccionFirmas).
+        } else if modelo.actualizandoFirmas && !motor.hayFirmas {
+            Label("Descargando las firmas de virus por primera vez…", systemImage: "arrow.down.circle")
+                .font(.callout)
+                .foregroundStyle(.orange)
+        } else if (!motor.integrado && !motor.configExiste) || !motor.hayFirmas {
+            // Lo resuelve el botón "Actualizar firmas" (ver SeccionFirmas).
             Text("Pulsa «Actualizar firmas» para terminar de prepararlo.")
                 .font(.callout)
                 .foregroundStyle(.orange)

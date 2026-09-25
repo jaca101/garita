@@ -28,6 +28,9 @@ final class ModeloApp {
     var mensajeFirmas: String?
     var errorFirmas = false
 
+    /// Último intento de actualización automática (para no reintentar sin parar si falla).
+    @ObservationIgnored var ultimoIntentoAutomatico: Date?
+
     /// Última vez que freshclam terminó bien (se guarda entre arranques).
     var ultimaComprobacion: Date? = UserDefaults.standard.object(forKey: "ultimaComprobacionFirmas") as? Date {
         didSet { UserDefaults.standard.set(ultimaComprobacion, forKey: "ultimaComprobacionFirmas") }
@@ -196,9 +199,22 @@ final class ModeloApp {
     func comprobarMotor() {
         Task {
             motor = await Task.detached { MotorClamAV.detectar() }.value
+            revisarActualizacionAutomatica()
             escanearPendientes()
             escanearColaVigilante()
         }
+    }
+
+    /// Actualiza las firmas sola si no hay ninguna, o si la última actualización
+    /// correcta fue hace más de 12 horas. Si falla (p. ej. sin conexión), no lo
+    /// reintenta hasta pasados 30 minutos. Se llama al arrancar y cada minuto.
+    func revisarActualizacionAutomatica() {
+        guard let motor, motor.freshclam != nil, !actualizandoFirmas else { return }
+        if let intento = ultimoIntentoAutomatico, Date().timeIntervalSince(intento) < 30 * 60 { return }
+        let antiguas = ultimaComprobacion.map { Date().timeIntervalSince($0) > Firmas.intervaloAutomatico } ?? true
+        guard !motor.hayFirmas || antiguas else { return }
+        ultimoIntentoAutomatico = Date()
+        actualizarFirmas()
     }
 
     /// Ejecuta freshclam en segundo plano y, al acabar, vuelve a detectar el motor
@@ -225,10 +241,11 @@ final class ModeloApp {
         guard !rutas.isEmpty else { return }
         // Si aún no se puede, lo guardamos para después (p. ej. el Finder ha
         // arrancado Garita con "Escanear con Garita" y el motor no está detectado).
-        guard let clamscan = motor?.clamscan, motor?.listo == true, !escaneando else {
+        guard let motor, let clamscan = motor.clamscan, motor.listo, !escaneando else {
             pendientes += rutas
             return
         }
+        let opciones = motor.opcionesClamscan
         escaneando = true
         escaneoCancelado = false
         rutasEscaneo = rutas
@@ -237,7 +254,7 @@ final class ModeloApp {
 
         Task {
             var resultado = await Task.detached {
-                Escaner.escanear(rutas, con: clamscan, alArrancar: { pid in
+                Escaner.escanear(rutas, con: clamscan, opciones: opciones, alArrancar: { pid in
                     Task { @MainActor in self.pidEscaneo = pid }
                 }, alAvanzar: { archivos, ultimo in
                     Task { @MainActor in self.progresoEscaneo?.avanzar(archivos, ultimo) }

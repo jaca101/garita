@@ -23,7 +23,7 @@ struct SeccionFirmas: View {
             }
 
             if let ultima = modelo.ultimaComprobacion {
-                Text("Última comprobación: \(ultima.formatted(.relative(presentation: .named)))")
+                Text("Última comprobación: \(ultima.formatted(.relative(presentation: .named))) · se actualizan solas cada 12 h")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

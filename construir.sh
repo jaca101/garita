@@ -35,17 +35,33 @@ for lado in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONOS" -o "$APP/Contents/Resources/Garita.icns"
 
+# ClamAV integrado (lo prepara preparar-clamav.sh en vendor/clamav-integrado).
+INTEGRADO="vendor/clamav-integrado"
+if [[ -d "$INTEGRADO" ]]; then
+    echo "→ Integrando ClamAV $(cat "$INTEGRADO/Resources/VERSION")…"
+    ditto "$INTEGRADO/Helpers"    "$APP/Contents/Helpers"
+    ditto "$INTEGRADO/Frameworks" "$APP/Contents/Frameworks"
+    ditto "$INTEGRADO/Resources"  "$APP/Contents/Resources/clamav"
+else
+    echo "→ Sin ClamAV integrado (ejecuta ./preparar-clamav.sh): Garita usará el de Homebrew."
+fi
+
 # Firma: con el certificado propio si existe (ver crear-certificado.sh), para que
 # macOS reconozca siempre a Garita como la misma app y conserve sus permisos.
 # Si no existe, firma ad-hoc (funciona, pero los permisos se pierden al recompilar).
+# Primero lo de dentro (librerías y programas de ClamAV) y al final la app entera.
 CERTIFICADO="Garita (firma local)"
 if security find-certificate -c "$CERTIFICADO" >/dev/null 2>&1; then
+    FIRMA="$CERTIFICADO"
     echo "→ Firmando con \"$CERTIFICADO\"…"
-    codesign --force --sign "$CERTIFICADO" "$APP"
 else
+    FIRMA="-"
     echo "→ Firmando ad-hoc (crea un certificado propio con ./crear-certificado.sh)…"
-    codesign --force --sign - "$APP"
 fi
+for interno in "$APP"/Contents/Frameworks/*.dylib(N) "$APP"/Contents/Helpers/*(N); do
+    codesign --force --sign "$FIRMA" "$interno" 2>/dev/null
+done
+codesign --force --sign "$FIRMA" "$APP"
 
 echo "✓ Listo: $APP"
 

@@ -1,7 +1,11 @@
 import Foundation
 
-/// Fotografía de lo que hay instalado de ClamAV en este Mac.
+/// Fotografía del ClamAV que usa Garita.
 struct EstadoMotor {
+    /// true = el ClamAV que va dentro de Garita.app; false = el de Homebrew.
+    var integrado = false
+    /// Certificado con el que se verifican las firmas descargadas (solo el integrado).
+    var certificados: URL?
     /// Ruta a `clamscan` (el escáner), o nil si no se encontró.
     var clamscan: URL?
     /// Ruta a `freshclam` (el actualizador de firmas), o nil si no se encontró.
@@ -18,6 +22,13 @@ struct EstadoMotor {
     /// Carpeta donde freshclam guarda la base de firmas.
     var carpetaFirmas: URL?
     var hayFirmas = false
+
+    /// Opciones para clamscan: con el ClamAV integrado hay que decirle dónde
+    /// están sus firmas y su certificado (el de Homebrew ya lo sabe).
+    var opcionesClamscan: [String] {
+        guard integrado, let carpetaFirmas, let certificados else { return [] }
+        return ["--database=\(carpetaFirmas.path)", "--cvdcertsdir=\(certificados.path)"]
+    }
 
     /// Todo lo necesario para poder escanear.
     var listo: Bool {
@@ -41,12 +52,21 @@ struct InfoFirmas {
     var fecha: Date      // cuándo publicó ClamAV esas firmas
 }
 
-/// Localiza los binarios de ClamAV y comprueba que estén listos para usar.
+/// Localiza ClamAV y comprueba que esté listo para usar.
 ///
-/// Suponemos una instalación de Homebrew: los binarios están en `<prefijo>/bin`,
-/// la configuración en `<prefijo>/etc/clamav` y las firmas en `<prefijo>/var/lib/clamav`,
-/// donde `<prefijo>` es `/opt/homebrew` (Apple Silicon) o `/usr/local` (Intel).
+/// 1. Primero, el ClamAV integrado en Garita.app (ver preparar-clamav.sh):
+///      programas en Contents/Helpers, librerías en Contents/Frameworks,
+///      certificado en Contents/Resources/clamav/certs.
+///    Sus firmas y su configuración van en ~/Library/Application Support/Garita/clamav/.
+/// 2. Si no lo hay (p. ej. compilación de desarrollo sin él), el de Homebrew:
+///      binarios en <prefijo>/bin, configuración en <prefijo>/etc/clamav y firmas
+///      en <prefijo>/var/lib/clamav (<prefijo> = /opt/homebrew o /usr/local).
 enum MotorClamAV {
+
+    /// Carpeta de datos del ClamAV integrado: firmas y freshclam.conf.
+    static var carpetaDatos: URL {
+        URL.applicationSupportDirectory.appending(path: "Garita/clamav")
+    }
 
     /// Carpetas donde buscamos primero. Las apps lanzadas desde el Finder no heredan
     /// el PATH de la terminal, así que no basta con mirar el PATH.
@@ -56,8 +76,25 @@ enum MotorClamAV {
     /// llamarla fuera del hilo principal.
     static func detectar() -> EstadoMotor {
         var estado = EstadoMotor()
-        estado.clamscan = buscarBinario("clamscan")
-        estado.freshclam = buscarBinario("freshclam")
+        let fm = FileManager.default
+        let ayudantes = Bundle.main.bundleURL.appending(path: "Contents/Helpers")
+
+        if fm.isExecutableFile(atPath: ayudantes.appending(path: "clamscan").path),
+           fm.isExecutableFile(atPath: ayudantes.appending(path: "freshclam").path) {
+            // ClamAV integrado.
+            estado.integrado = true
+            estado.clamscan = ayudantes.appending(path: "clamscan")
+            estado.freshclam = ayudantes.appending(path: "freshclam")
+            estado.certificados = Bundle.main.resourceURL?.appending(path: "clamav/certs")
+            estado.configFreshclam = carpetaDatos.appending(path: "freshclam.conf")
+            estado.configExiste = fm.fileExists(atPath: estado.configFreshclam!.path)
+            estado.carpetaFirmas = carpetaDatos.appending(path: "firmas")
+            estado.hayFirmas = contieneFirmas(estado.carpetaFirmas!)
+        } else {
+            // ClamAV de Homebrew.
+            estado.clamscan = buscarBinario("clamscan")
+            estado.freshclam = buscarBinario("freshclam")
+        }
         estado.homebrew = buscarBinario("brew")
 
         if let clamscan = estado.clamscan,
@@ -65,8 +102,8 @@ enum MotorClamAV {
             (estado.version, estado.firmas) = interpretarVersion(resultado.salida)
         }
 
-        // Carpeta <prefijo> = la carpeta que contiene /bin
-        if let freshclam = estado.freshclam {
+        // Carpeta <prefijo> de Homebrew = la carpeta que contiene /bin
+        if !estado.integrado, let freshclam = estado.freshclam {
             let prefijo = freshclam.deletingLastPathComponent().deletingLastPathComponent()
 
             let config = prefijo.appending(path: "etc/clamav/freshclam.conf")
@@ -77,7 +114,37 @@ enum MotorClamAV {
             estado.carpetaFirmas = firmas
             estado.hayFirmas = contieneFirmas(firmas)
         }
+
+        // Versión y fecha de las firmas: de la cabecera del archivo "daily".
+        if let carpeta = estado.carpetaFirmas, let cabecera = leerCabeceraFirmas(carpeta) {
+            estado.firmas = cabecera
+        }
         return estado
+    }
+
+    /// Carpeta de firmas de Homebrew en este Mac, si existe y tiene firmas
+    /// (para no descargarlas otra vez la primera vez que se usa el integrado).
+    static var firmasDeHomebrew: URL? {
+        ["/opt/homebrew/var/lib/clamav", "/usr/local/var/lib/clamav"]
+            .map { URL(filePath: $0) }
+            .first { contieneFirmas($0) }
+    }
+
+    /// Lee la cabecera de daily.cld o daily.cvd: 512 bytes de texto separados
+    /// por ":", p. ej. "ClamAV-VDB:24 Sep 2026 06-24 +0000:28133:355677:90:…:1790231059".
+    /// El tercer campo es la versión y el noveno la fecha (segundos desde 1970).
+    static func leerCabeceraFirmas(_ carpeta: URL) -> InfoFirmas? {
+        for nombre in ["daily.cld", "daily.cvd"] {
+            guard let archivo = try? FileHandle(forReadingFrom: carpeta.appending(path: nombre)) else { continue }
+            defer { try? archivo.close() }
+            guard let datos = try? archivo.read(upToCount: 512) else { continue }
+            let campos = String(decoding: datos, as: UTF8.self).split(separator: ":", omittingEmptySubsequences: false)
+            guard campos.count >= 9, campos[0] == "ClamAV-VDB",
+                  let segundos = TimeInterval(campos[8].trimmingCharacters(in: .whitespacesAndNewlines.union(.controlCharacters)))
+            else { continue }
+            return InfoFirmas(numero: String(campos[2]), fecha: Date(timeIntervalSince1970: segundos))
+        }
+        return nil
     }
 
     /// Busca un ejecutable primero en las carpetas conocidas y luego en el PATH.

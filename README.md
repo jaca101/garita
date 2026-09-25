@@ -8,7 +8,7 @@ Su función principal es el **vigilante de descargas**: escanea automáticamente
 
 - **Vigilante de descargas.** Usa FSEvents, ignora los archivos a medio descargar (`.crdownload`, `.part`…) y escanea por lotes con un solo `clamscan`. Puede aislar automáticamente o solo avisar.
 - **Escaneo a demanda.** Arrastra a la ventana, usa el botón, o haz clic derecho en el Finder → «Escanear con Garita».
-- **Firmas.** Botón para ejecutar `freshclam`, con la versión y la fecha de publicación de las firmas.
+- **ClamAV integrado.** Va dentro de la app, así que no hace falta Homebrew. Las firmas se descargan solas al abrir Garita por primera vez y se actualizan cada 12 horas; también hay un botón para forzarlo.
 - **Cuarentena.** Mueve el archivo (no lo borra), le quita los permisos y lo codifica con XOR para que quede inerte. Cada archivo lleva una ficha JSON legible. Se puede restaurar o eliminar.
 - **Notificaciones nativas** e **historial de avisos**.
 - **Límite de 2 GB por archivo.** Lo que supera ese tamaño se marca como «no analizado», nunca se salta en silencio.
@@ -18,16 +18,17 @@ Su función principal es el **vigilante de descargas**: escanea automáticamente
 Consulta [`Recursos/LEEME.txt`](Recursos/LEEME.txt), que va dentro del `.dmg`. En resumen:
 
 1. Arrastra `Garita.app` a Aplicaciones.
-2. La primera vez, ve a **Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente»**. La app tiene firma ad-hoc, no de Apple Developer.
-3. Instala ClamAV con Homebrew: `brew install clamav`. Garita te guía si falta.
-4. En Garita, pulsa **«Actualizar firmas»**.
+2. La primera vez, ve a **Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente»**. La app no está firmada con una cuenta de Apple Developer.
+3. Garita descarga las firmas de virus la primera vez (~110 MB), sin que tengas que hacer nada.
 
 ## Compilar
 
 Hace falta Xcode (o sus herramientas de línea de comandos) y macOS 15 o posterior.
 
 ```bash
+./preparar-clamav.sh    # una vez: descarga el instalador oficial de ClamAV y prepara la versión integrada
 ./construir.sh abrir    # compila build/Garita.app para este Mac y la abre
+./instalar.sh           # la instala o actualiza en /Applications
 ./empaquetar.sh         # binario universal + build/Garita-<versión>.dmg
 ```
 
@@ -44,13 +45,20 @@ El proyecto usa Swift Package Manager, sin proyecto de Xcode: todo es texto legi
 | `Sources/Garita/Notificaciones.swift` · `Historial.swift` | Avisos |
 | `Sources/Garita/Seccion*.swift` · `Ventana*.swift` | Interfaz |
 
+## ClamAV integrado
+
+`preparar-clamav.sh` descarga el instalador oficial de Cisco para macOS (universal) y comprueba que lo firma Cisco. Después extrae solo `clamscan`, `freshclam`, sus librerías y el certificado de firmas, y los reubica para que funcionen dentro de la app, en `Contents/Helpers` y `Contents/Frameworks`. Garita ejecuta ClamAV como programa independiente, sin enlazar su librería.
+
+ClamAV es © Cisco Systems, Inc., con licencia GNU GPLv2. Su licencia y el enlace a su código fuente van en `Contents/Resources/clamav/licencias`. Si no hay ClamAV integrado, por ejemplo en una compilación sin `preparar-clamav.sh`, Garita usa el de Homebrew.
+
 ## Dónde guarda cosas
 
+- **Firmas y configuración de ClamAV:** `~/Library/Application Support/Garita/clamav/`
 - **Cuarentena:** `~/Library/Application Support/Garita/Cuarentena/`
 - **Historial de avisos:** `~/Library/Application Support/Garita/historial.json`
 - **Ajustes:** `defaults read local.garita`
 
 ## Planes
 
-- **v2:** escaneos programados y carpetas vigiladas configurables.
-- Incluir ClamAV dentro de la app, para instalar sin Homebrew.
+- Firma con Apple Developer ID y notarización, para que Gatekeeper no avise.
+- Actualizaciones automáticas de la propia app (Sparkle).

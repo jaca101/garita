@@ -19,18 +19,25 @@ enum Proceso {
     /// `prioridadBaja`: macOS le da la CPU y el disco solo cuando nadie más los
     /// necesita (calidad de servicio "background"), para no ralentizar el Mac.
     ///
+    /// `entorno`: variables de entorno añadidas para el programa.
+    ///
     /// `alRecibirLinea` recibe cada línea de salida en cuanto llega (para mostrar
     /// el progreso); se llama en este mismo hilo, mientras el programa trabaja.
     static func ejecutar(
         _ programa: URL,
         argumentos: [String],
         prioridadBaja: Bool = false,
+        entorno: [String: String] = [:],
         alArrancar: (@Sendable (Int32) -> Void)? = nil,
         alRecibirLinea: (String) -> Void = { _ in }
     ) -> ResultadoProceso? {
         let proceso = Process()
         proceso.executableURL = programa
         proceso.arguments = argumentos
+        if !entorno.isEmpty {
+            // Las variables de Garita más las indicadas (p. ej. CVD_CERTS_DIR).
+            proceso.environment = ProcessInfo.processInfo.environment.merging(entorno) { _, nueva in nueva }
+        }
         if prioridadBaja {
             proceso.qualityOfService = .background
         }

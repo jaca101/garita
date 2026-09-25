@@ -87,7 +87,8 @@ extension ModeloApp {
     /// Si ya hay un lote en marcha, o el motor no está listo, espera.
     func escanearColaVigilante() {
         guard vigilanteEscaneando.isEmpty, !colaVigilante.isEmpty,
-              let clamscan = motor?.clamscan, motor?.listo == true else { return }
+              let motor, let clamscan = motor.clamscan, motor.listo else { return }
+        let opciones = motor.opcionesClamscan
 
         let lote = colaVigilante
         colaVigilante = []
@@ -95,7 +96,7 @@ extension ModeloApp {
 
         Task {
             let resultado = await Task.detached {
-                Escaner.escanear(lote, con: clamscan) { _ in }
+                Escaner.escanear(lote, con: clamscan, opciones: opciones) { _ in }
             }.value
             vigilanteEscaneando = []
             registrar(lote, resultado)

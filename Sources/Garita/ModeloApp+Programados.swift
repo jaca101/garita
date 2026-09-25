@@ -18,6 +18,7 @@ extension ModeloApp {
         Task {
             while true {
                 try? await Task.sleep(for: .seconds(60))
+                revisarActualizacionAutomatica()
                 revisarProgramados()
             }
         }
@@ -43,14 +44,15 @@ extension ModeloApp {
 
     /// Ejecuta una tarea ya (también desde "Ejecutar ahora", sin esperar a la corriente).
     func ejecutar(_ tarea: TareaProgramada) {
-        guard tareaEnCurso == nil, let clamscan = motor?.clamscan, motor?.listo == true else { return }
+        guard tareaEnCurso == nil, let motor, let clamscan = motor.clamscan, motor.listo else { return }
+        let opciones = motor.opcionesClamscan
         tareaEnCurso = tarea.id
         programadoCancelado = false
         progresoProgramado = ProgresoEscaneo()
 
         Task {
             var resultado = await Task.detached {
-                Escaner.escanear([tarea.url], con: clamscan, prioridadBaja: true, alArrancar: { pid in
+                Escaner.escanear([tarea.url], con: clamscan, opciones: opciones, prioridadBaja: true, alArrancar: { pid in
                     Task { @MainActor in self.pidProgramado = pid }
                 }, alAvanzar: { archivos, ultimo in
                     Task { @MainActor in self.progresoProgramado?.avanzar(archivos, ultimo) }

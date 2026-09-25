@@ -53,6 +53,7 @@ enum Escaner {
     static func escanear(
         _ rutas: [URL],
         con clamscan: URL,
+        opciones: [String] = [],
         prioridadBaja: Bool = false,
         alArrancar: @escaping @Sendable (Int32) -> Void,
         alAvanzar: @escaping @Sendable (_ archivos: Int, _ ultimo: String) -> Void = { _, _ in }
@@ -64,7 +65,7 @@ enum Escaner {
 
         // -r: entrar en subcarpetas. No usamos --infected porque entonces clamscan
         // no dice qué archivos no pudo leer; filtramos nosotros las líneas "OK".
-        let argumentos = ["-r"] + opcionesLimites + rutas.map(\.path)
+        let argumentos = ["-r"] + opcionesLimites + opciones + rutas.map(\.path)
 
         guard let proceso = Proceso.ejecutar(
             clamscan, argumentos: argumentos, prioridadBaja: prioridadBaja, alArrancar: alArrancar,
