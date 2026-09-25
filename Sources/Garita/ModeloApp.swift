@@ -54,6 +54,11 @@ final class ModeloApp {
     private var pidEscaneo: Int32?
     private var escaneoCancelado = false
 
+    /// Archivos marcados como seguros (falsos positivos), por huella SHA-256.
+    var seguros: [ArchivoSeguro] = Seguros.cargar()
+    /// Huellas de los seguros, para pasárselas a los escaneos.
+    var huellasSeguras: Set<String> { Set(seguros.map(\.sha256)) }
+
     /// Archivos en cuarentena, lo más reciente primero.
     var cuarentena: [ElementoCuarentena] = Cuarentena.listar()
     /// Último error al aislar, restaurar o eliminar (para mostrarlo en el panel).
@@ -246,6 +251,7 @@ final class ModeloApp {
             return
         }
         let opciones = motor.opcionesClamscan
+        let huellas = huellasSeguras
         escaneando = true
         escaneoCancelado = false
         rutasEscaneo = rutas
@@ -263,8 +269,10 @@ final class ModeloApp {
                 let primero = Escaner.escanear(rutas, con: clamscan, opciones: opciones,
                                                alArrancar: alArrancar, alAvanzar: alAvanzar)
                 // Lo que no se pudo analizar entero por los límites, a fondo.
-                return AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
-                                                prioridadBaja: false, alArrancar: alArrancar, alAvanzar: alAvanzar)
+                let completo = AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                                                        prioridadBaja: false, alArrancar: alArrancar, alAvanzar: alAvanzar)
+                // Y fuera los que el usuario marcó como seguros.
+                return Seguros.filtrar(completo, huellas: huellas)
             }.value
             progresoEscaneo = nil
             resultado.cancelado = escaneoCancelado
@@ -341,6 +349,54 @@ final class ModeloApp {
         if ventanasAbiertas == 0 {
             NSApplication.shared.setActivationPolicy(.accessory)
         }
+    }
+
+    // MARK: - Archivos seguros
+
+    /// Marca un archivo como seguro: calcula su huella (en segundo plano, puede
+    /// ser grande) y lo añade a la lista. Devuelve false si no se pudo leer.
+    @discardableResult
+    func marcarSeguro(_ archivo: URL, amenaza: String) async -> Bool {
+        guard let huella = await Task.detached(priority: .userInitiated, operation: { Seguros.sha256(archivo) }).value
+        else {
+            errorCuarentena = "No se pudo leer \(archivo.lastPathComponent) para calcular su huella."
+            return false
+        }
+        if !seguros.contains(where: { $0.sha256 == huella }) {
+            seguros.append(ArchivoSeguro(sha256: huella, nombre: archivo.lastPathComponent,
+                                         ruta: archivo.path, amenaza: amenaza))
+            Seguros.guardar(seguros)
+        }
+        return true
+    }
+
+    /// Detección del escaneo manual → segura (y fuera de la lista de resultados).
+    func marcarSeguro(_ deteccion: Deteccion) {
+        Task {
+            guard await marcarSeguro(deteccion.archivo, amenaza: deteccion.amenaza) else { return }
+            resultadoEscaneo?.detecciones.removeAll { $0.id == deteccion.id }
+        }
+    }
+
+    /// Amenaza del vigilante sin aislar → segura (y fuera del registro).
+    func marcarSeguro(_ evento: EventoVigilante) {
+        guard case .amenaza(let amenaza) = evento.resultado else { return }
+        Task {
+            guard await marcarSeguro(evento.archivo, amenaza: amenaza) else { return }
+            actividad.removeAll { $0.id == evento.id }
+        }
+    }
+
+    /// Archivo aislado → restaurarlo a su sitio y marcarlo como seguro.
+    func restaurarYMarcarSeguro(_ elemento: ElementoCuarentena) async -> URL? {
+        guard let destino = restaurar(elemento) else { return nil }
+        await marcarSeguro(destino, amenaza: elemento.amenaza)
+        return destino
+    }
+
+    func quitarSeguro(_ seguro: ArchivoSeguro) {
+        seguros.removeAll { $0.id == seguro.id }
+        Seguros.guardar(seguros)
     }
 
     // MARK: - Cuarentena

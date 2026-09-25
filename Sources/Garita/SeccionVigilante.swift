@@ -139,9 +139,17 @@ private struct FilaActividad: View {
             }
             .help(evento.archivo.path)
             Spacer()
-            if evento.pendienteDeResolver {
-                Button("Aislar") { modelo.aislar(evento) }
+            if evento.pendienteDeResolver, case .amenaza(let amenaza) = evento.resultado {
+                VStack(spacing: 4) {
+                    Button("Aislar") { modelo.aislar(evento) }
+                        .controlSize(.small)
+                    Button("Es seguro") {
+                        if confirmarSeguro(nombre: evento.archivo.lastPathComponent, amenaza: amenaza) {
+                            modelo.marcarSeguro(evento)
+                        }
+                    }
                     .controlSize(.small)
+                }
             }
         }
         .font(.callout)

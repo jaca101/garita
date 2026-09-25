@@ -49,6 +49,7 @@ extension ModeloApp {
     func ejecutar(_ tarea: TareaProgramada) {
         guard tareaEnCurso == nil, let motor, let clamscan = motor.clamscan, motor.listo else { return }
         let opciones = motor.opcionesClamscan
+        let huellas = huellasSeguras
         tareaEnCurso = tarea.id
         programadoCancelado = false
         progresoProgramado = ProgresoEscaneo()
@@ -63,8 +64,9 @@ extension ModeloApp {
                 }
                 let primero = Escaner.escanear([tarea.url], con: clamscan, opciones: opciones, prioridadBaja: true,
                                                alArrancar: alArrancar, alAvanzar: alAvanzar)
-                return AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
-                                                prioridadBaja: true, alArrancar: alArrancar, alAvanzar: alAvanzar)
+                let completo = AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                                                        prioridadBaja: true, alArrancar: alArrancar, alAvanzar: alAvanzar)
+                return Seguros.filtrar(completo, huellas: huellas)
             }.value
             progresoProgramado = nil
             resultado.cancelado = programadoCancelado

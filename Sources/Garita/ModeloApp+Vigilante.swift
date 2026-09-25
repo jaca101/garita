@@ -89,6 +89,7 @@ extension ModeloApp {
         guard vigilanteEscaneando.isEmpty, !colaVigilante.isEmpty,
               let motor, let clamscan = motor.clamscan, motor.listo else { return }
         let opciones = motor.opcionesClamscan
+        let huellas = huellasSeguras
 
         let lote = colaVigilante
         colaVigilante = []
@@ -97,8 +98,9 @@ extension ModeloApp {
         Task {
             let resultado = await Task.detached {
                 let primero = Escaner.escanear(lote, con: clamscan, opciones: opciones) { _ in }
-                return AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
-                                                prioridadBaja: true, alArrancar: { _ in }, alAvanzar: { _, _ in })
+                let completo = AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                                                        prioridadBaja: true, alArrancar: { _ in }, alAvanzar: { _, _ in })
+                return Seguros.filtrar(completo, huellas: huellas)
             }.value
             vigilanteEscaneando = []
             registrar(lote, resultado)

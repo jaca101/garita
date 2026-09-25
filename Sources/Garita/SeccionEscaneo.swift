@@ -214,6 +214,13 @@ private struct FilaDeteccion: View {
                 Button("Aislar") { modelo.aislar(deteccion) }
                     .controlSize(.small)
                     .help("Mover a la cuarentena")
+                Button("Es seguro") {
+                    if confirmarSeguro(nombre: deteccion.archivo.lastPathComponent, amenaza: deteccion.amenaza) {
+                        modelo.marcarSeguro(deteccion)
+                    }
+                }
+                .controlSize(.small)
+                .help("Falso positivo: no volver a avisar de este archivo mientras no cambie")
             }
         }
         .padding(6)

@@ -47,6 +47,8 @@ struct SeccionCuarentena: View {
                 }
             }
 
+            EnlaceSeguros()
+
             if let error = modelo.errorCuarentena {
                 Text(error)
                     .font(.caption)
@@ -77,6 +79,15 @@ private struct FilaCuarentena: View {
             Menu {
                 Button("Restaurar a su ubicación…", systemImage: "arrow.uturn.backward") {
                     restaurar()
+                }
+                Button("Restaurar y marcar como seguro…", systemImage: "checkmark.shield") {
+                    if confirmarSeguro(nombre: elemento.nombreOriginal, amenaza: elemento.amenaza) {
+                        Task {
+                            if let destino = await modelo.restaurarYMarcarSeguro(elemento) {
+                                NSWorkspace.shared.activateFileViewerSelecting([destino])
+                            }
+                        }
+                    }
                 }
                 Button("Eliminar definitivamente…", systemImage: "trash", role: .destructive) {
                     eliminar()
