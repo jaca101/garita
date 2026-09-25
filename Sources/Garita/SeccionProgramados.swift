@@ -51,6 +51,7 @@ private struct FilaProgramada: View {
     let editar: () -> Void
 
     private var enCurso: Bool { modelo.tareaEnCurso == tarea.id }
+    @State private var verProblemas = false
 
     var body: some View {
         HStack(alignment: .top) {
@@ -79,6 +80,14 @@ private struct FilaProgramada: View {
                         .font(.caption)
                         .foregroundStyle(resultado.contains("amenaza") ? .red : .secondary)
                         .lineLimit(2)
+                    if let problemas = tarea.ultimosProblemas, !problemas.isEmpty {
+                        Button("Ver los \(problemas.count) sin analizar…") { verProblemas = true }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                            .popover(isPresented: $verProblemas, arrowEdge: .trailing) {
+                                ListaProblemas(problemas: problemas)
+                            }
+                    }
                 }
             }
             .opacity(tarea.activa ? 1 : 0.5)
@@ -101,5 +110,31 @@ private struct FilaProgramada: View {
                 .fixedSize()
             }
         }
+    }
+}
+
+/// Lista de archivos que no se pudieron analizar (del todo), con su motivo.
+private struct ListaProblemas: View {
+    let problemas: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Sin analizar del todo en el último escaneo").font(.headline)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(problemas, id: \.self) { linea in
+                        Text(linea)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .frame(maxHeight: 360)
+            Text("Suelen ser archivos de más de 2 GB, comprimidos con contraseña o que superan los límites de ClamAV.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .padding()
+        .frame(width: 520)
     }
 }

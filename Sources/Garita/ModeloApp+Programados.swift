@@ -3,6 +3,9 @@ import AppKit
 /// Escaneos programados: el reloj que los revisa, su ejecución y la edición de la lista.
 extension ModeloApp {
 
+    /// Cuántos archivos sin analizar guardamos por tarea.
+    static let maxProblemasGuardados = 500
+
     /// Margen tras arrancar o despertar el Mac antes de lanzar un escaneo programado.
     static let margenTrasDespertar: TimeInterval = 5 * 60
 
@@ -52,11 +55,16 @@ extension ModeloApp {
 
         Task {
             var resultado = await Task.detached {
-                Escaner.escanear([tarea.url], con: clamscan, opciones: opciones, prioridadBaja: true, alArrancar: { pid in
+                let alArrancar: @Sendable (Int32) -> Void = { pid in
                     Task { @MainActor in self.pidProgramado = pid }
-                }, alAvanzar: { archivos, ultimo in
+                }
+                let alAvanzar: @Sendable (Int, String) -> Void = { archivos, ultimo in
                     Task { @MainActor in self.progresoProgramado?.avanzar(archivos, ultimo) }
-                })
+                }
+                let primero = Escaner.escanear([tarea.url], con: clamscan, opciones: opciones, prioridadBaja: true,
+                                               alArrancar: alArrancar, alAvanzar: alAvanzar)
+                return AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                                                prioridadBaja: true, alArrancar: alArrancar, alAvanzar: alAvanzar)
             }.value
             progresoProgramado = nil
             resultado.cancelado = programadoCancelado
@@ -91,18 +99,28 @@ extension ModeloApp {
             // Aunque se cancele, cuenta como hecha: si no, volvería a empezar al minuto.
             programados[i].ultimaEjecucion = Date()
             programados[i].ultimoResultado = resumen
+            programados[i].ultimosProblemas = resultado.problemas.prefix(Self.maxProblemasGuardados)
+                .map { "\($0.archivo.path): \($0.motivo)" }
             Programados.guardar(programados)
         }
 
         if resultado.cancelado { return }
         let nombre = FileManager.default.displayName(atPath: tarea.carpeta)
         let hayAmenazas = !resultado.detecciones.isEmpty
+        var texto = resumen
+        if hayAmenazas {
+            texto += "\n" + resultado.detecciones.prefix(3)
+                .map { "\($0.archivo.lastPathComponent) (\($0.amenaza))" }.joined(separator: "\n")
+        }
+        if !resultado.problemas.isEmpty {
+            // En el historial, también qué no se pudo analizar (hasta 30).
+            texto += "\n\nSin analizar del todo:\n" + resultado.problemas.prefix(30)
+                .map { "• \($0.archivo.path): \($0.motivo)" }.joined(separator: "\n")
+            if resultado.problemas.count > 30 { texto += "\ny \(resultado.problemas.count - 30) más" }
+        }
         let aviso = Aviso(
             titulo: hayAmenazas ? "Escaneo programado de \(nombre): amenazas" : "Escaneo programado de \(nombre)",
-            texto: resumen + (hayAmenazas
-                ? "\n" + resultado.detecciones.prefix(3).map { "\($0.archivo.lastPathComponent) (\($0.amenaza))" }
-                    .joined(separator: "\n")
-                : ""),
+            texto: texto,
             importante: hayAmenazas)
         // Siempre al historial; notificación solo si hay algo que contar
         // (no queremos un aviso de "limpio" cada noche a las 3:00).
@@ -119,7 +137,9 @@ extension ModeloApp {
             partes.append("limpio")
         } else {
             var texto = n == 1 ? "1 amenaza" : "\(n) amenazas"
-            if aisladas > 0 { texto += aisladas == n ? " (aisladas)" : " (\(aisladas) aisladas)" }
+            if aisladas > 0 {
+                texto += aisladas == n ? (n == 1 ? " (aislada)" : " (aisladas)") : " (\(aisladas) aisladas)"
+            }
             partes.append(texto)
         }
         if let analizados = r.archivosAnalizados {

@@ -16,6 +16,12 @@ struct Problema: Hashable {
 
     /// "archivo.zip: Access denied"
     var descripcion: String { "\(archivo.lastPathComponent): \(motivo)" }
+
+    /// ¿Se quedó sin analizar por los límites de ClamAV? (Estos son los que
+    /// AnalisisAFondo puede intentar abrir por su cuenta.)
+    var porLimite: Bool {
+        motivo.hasPrefix("no analizado: más de") || motivo.hasPrefix("analizado solo en parte")
+    }
 }
 
 /// Resultado completo de un escaneo.
@@ -34,12 +40,17 @@ struct ResultadoEscaneo {
 /// Escanea archivos y carpetas con `clamscan`.
 enum Escaner {
 
-    /// Límites de tamaño. Por defecto clamscan se salta SIN AVISAR los archivos de
-    /// más de 100 MB; los subimos a 2 GB y le pedimos que avise de lo que se salte
-    /// (sale como "Heuristics.Limits.Exceeded… FOUND", que tratamos como problema).
+    /// Límites. Por defecto clamscan se salta SIN AVISAR lo que los supera; los
+    /// ampliamos y le pedimos que avise (sale como "Heuristics.Limits.Exceeded…
+    /// FOUND", que tratamos como problema, no como virus):
+    ///   --max-filesize  archivos de hasta 2 GB (por defecto 100 MB)
+    ///   --max-scansize  hasta 4 GB de contenido descomprimido por archivo (por defecto 400 MB)
+    ///   --max-files     hasta 100 000 archivos dentro de un comprimido (por defecto
+    ///                   10 000; p. ej. la copia de una web en tar.gz tenía 12 065)
     static let opcionesLimites = [
         "--max-filesize=2000M",
-        "--max-scansize=2000M",
+        "--max-scansize=4000M",
+        "--max-files=100000",
         "--alert-exceeds-max=yes",
     ]
 
@@ -147,7 +158,9 @@ enum Escaner {
     /// Traduce el aviso de límites de clamscan a algo legible.
     private static func motivoLimite(_ aviso: String) -> String {
         if aviso.hasSuffix("MaxFileSize") { return "no analizado: más de 2 GB" }
-        if aviso.hasSuffix("MaxScanSize") { return "analizado solo en parte: más de 2 GB descomprimido" }
+        if aviso.hasSuffix("MaxScanSize") { return "analizado solo en parte: más de 4 GB descomprimido" }
+        if aviso.hasSuffix("MaxFiles") { return "analizado solo en parte: más de 100 000 archivos dentro" }
+        if aviso.hasSuffix("MaxRecursion") { return "analizado solo en parte: demasiados comprimidos unos dentro de otros" }
         return "analizado solo en parte: límite de ClamAV (\(aviso))"
     }
 }

@@ -17,6 +17,9 @@ struct TareaProgramada: Codable, Identifiable, Equatable {
     var ultimaEjecucion = Date()
     /// Resumen del último resultado, p. ej. "limpio · 120 archivos".
     var ultimoResultado: String?
+    /// Archivos que no se pudieron analizar (del todo) en la última ejecución,
+    /// como "ruta: motivo". Opcional para leer listas guardadas antes de existir.
+    var ultimosProblemas: [String]?
 
     var url: URL { URL(filePath: carpeta) }
 

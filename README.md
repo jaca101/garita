@@ -11,7 +11,7 @@ Su función principal es el **vigilante de descargas**: escanea automáticamente
 - **ClamAV integrado.** Va dentro de la app, así que no hace falta Homebrew. Las firmas se descargan solas al abrir Garita por primera vez y se actualizan cada 12 horas; también hay un botón para forzarlo.
 - **Cuarentena.** Mueve el archivo (no lo borra), le quita los permisos y lo codifica con XOR para que quede inerte. Cada archivo lleva una ficha JSON legible. Se puede restaurar o eliminar.
 - **Notificaciones nativas** e **historial de avisos**.
-- **Límite de 2 GB por archivo.** Lo que supera ese tamaño se marca como «no analizado», nunca se salta en silencio.
+- **Límites amplios y análisis a fondo.** ClamAV revisa archivos de hasta 2 GB y comprimidos con hasta 100 000 archivos o 4 GB de contenido. Lo que aún supere esos límites se abre aparte: las DMG se montan solo lectura, y los ZIP, TAR y PKG se descomprimen en una carpeta temporal si hay espacio. Nada se salta en silencio.
 
 ## Instalar (desde el .dmg)
 

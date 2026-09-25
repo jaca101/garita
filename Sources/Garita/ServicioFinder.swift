@@ -56,6 +56,8 @@ final class DelegadoApp: NSObject, NSApplicationDelegate, UNUserNotificationCent
         // Las notificaciones de ejecuciones anteriores ya no llevan a ningún sitio;
         // las retiramos (siguen en el historial de Garita).
         Notificaciones.retirarAntiguas()
+        // Por si un análisis a fondo quedó a medias (Garita cerrada, apagón…).
+        Task.detached(priority: .background) { AnalisisAFondo.limpiarRestos() }
     }
 
     /// "Reabrir" la app: doble clic en Garita.app estando ya abierta, o pulsar una

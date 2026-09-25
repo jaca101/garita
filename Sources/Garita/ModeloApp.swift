@@ -254,11 +254,17 @@ final class ModeloApp {
 
         Task {
             var resultado = await Task.detached {
-                Escaner.escanear(rutas, con: clamscan, opciones: opciones, alArrancar: { pid in
+                let alArrancar: @Sendable (Int32) -> Void = { pid in
                     Task { @MainActor in self.pidEscaneo = pid }
-                }, alAvanzar: { archivos, ultimo in
+                }
+                let alAvanzar: @Sendable (Int, String) -> Void = { archivos, ultimo in
                     Task { @MainActor in self.progresoEscaneo?.avanzar(archivos, ultimo) }
-                })
+                }
+                let primero = Escaner.escanear(rutas, con: clamscan, opciones: opciones,
+                                               alArrancar: alArrancar, alAvanzar: alAvanzar)
+                // Lo que no se pudo analizar entero por los límites, a fondo.
+                return AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                                                prioridadBaja: false, alArrancar: alArrancar, alAvanzar: alAvanzar)
             }.value
             progresoEscaneo = nil
             resultado.cancelado = escaneoCancelado

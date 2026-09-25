@@ -96,7 +96,9 @@ extension ModeloApp {
 
         Task {
             let resultado = await Task.detached {
-                Escaner.escanear(lote, con: clamscan, opciones: opciones) { _ in }
+                let primero = Escaner.escanear(lote, con: clamscan, opciones: opciones) { _ in }
+                return AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                                                prioridadBaja: true, alArrancar: { _ in }, alAvanzar: { _, _ in })
             }.value
             vigilanteEscaneando = []
             registrar(lote, resultado)
