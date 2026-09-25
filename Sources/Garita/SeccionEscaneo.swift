@@ -9,6 +9,9 @@ struct SeccionEscaneo: View {
     /// Solo en la ventana: en el panel de la barra no se puede arrastrar,
     /// porque se cierra en cuanto se hace clic en el Finder.
     var admiteArrastrar = false
+    /// Muestra el selector de archivos (lo decide MenuPrincipal: en la ventana,
+    /// como hoja; desde el desplegable, abriendo antes la ventana).
+    var pedirSelector: (Selector) -> Void = { _ in }
 
     @Environment(ModeloApp.self) private var modelo
     /// true mientras el usuario arrastra algo por encima de la zona.
@@ -52,7 +55,7 @@ struct SeccionEscaneo: View {
     private var botonElegir: some View {
         VStack(alignment: .leading, spacing: 4) {
             Button {
-                elegirArchivos()
+                pedirSelector(.escanear)
             } label: {
                 Label("Escanear archivo o carpeta…", systemImage: "doc.viewfinder")
                     .frame(maxWidth: .infinity)
@@ -71,7 +74,7 @@ struct SeccionEscaneo: View {
         let activo = modelo.motor?.listo == true
 
         return Button {
-            elegirArchivos()
+            pedirSelector(.escanear)
         } label: {
             VStack(spacing: 4) {
                 Image(systemName: "arrow.down.doc").font(.title2)
@@ -94,19 +97,6 @@ struct SeccionEscaneo: View {
             return true
         } isTargeted: { encima in
             arrastrandoEncima = encima
-        }
-    }
-
-    /// Abre el selector de archivos de macOS.
-    private func elegirArchivos() {
-        let selector = NSOpenPanel()
-        selector.canChooseFiles = true
-        selector.canChooseDirectories = true
-        selector.allowsMultipleSelection = true
-        selector.prompt = "Escanear"
-        NSApplication.shared.activate()
-        if selector.runModal() == .OK {
-            modelo.escanear(selector.urls)
         }
     }
 

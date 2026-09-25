@@ -41,6 +41,33 @@ struct MenuPrincipal: View {
         // Altura = la que pida el contenido (con el tope de arriba), para que la
         // ventana crezca con él en vez de recortarlo.
         .fixedSize(horizontal: false, vertical: true)
+        // En la ventana: atender el selector que se pidió desde el desplegable.
+        .onAppear { atenderSelectorPendiente() }
+        .onChange(of: modelo.selectorPendiente) { atenderSelectorPendiente() }
+    }
+
+    /// Selectores de archivos: en la ventana, como hoja pegada a ella. Desde el
+    /// desplegable no (se cerraría al aparecer el selector): se abre la ventana
+    /// y ella lo muestra.
+    private func pedirSelector(_ tipo: Selector) {
+        if enVentana {
+            Selectores.mostrar(tipo, modelo: modelo)
+        } else {
+            modelo.selectorPendiente = tipo
+            cerrarDesplegable()
+            abrirVentana(id: "principal")
+            NSApplication.shared.activate()
+        }
+    }
+
+    private func atenderSelectorPendiente() {
+        guard enVentana, let tipo = modelo.selectorPendiente else { return }
+        modelo.selectorPendiente = nil
+        // Un instante, para que la ventana esté ya delante y con su tamaño.
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            Selectores.mostrar(tipo, modelo: modelo)
+        }
     }
 
     private var cabecera: some View {
@@ -80,11 +107,11 @@ struct MenuPrincipal: View {
 
     private var secciones: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SeccionVigilante()
+            SeccionVigilante(pedirSelector: pedirSelector)
 
             Divider()
 
-            SeccionEscaneo(admiteArrastrar: enVentana)
+            SeccionEscaneo(admiteArrastrar: enVentana, pedirSelector: pedirSelector)
 
             Divider()
 

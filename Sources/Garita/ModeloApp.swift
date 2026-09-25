@@ -47,6 +47,9 @@ final class ModeloApp {
     /// Rutas que llegaron mientras no se podía escanear (motor aún sin detectar
     /// o escaneo en curso). Se escanean en cuanto se pueda.
     private var pendientes: [URL] = []
+    /// Selector de archivos pedido desde el desplegable, que la ventana mostrará
+    /// como hoja en cuanto aparezca (ver Selectores.swift).
+    var selectorPendiente: Selector?
     /// Se incrementa para pedir que se abra la ventana (lo vigila IconoBarra,
     /// que es quien puede abrir ventanas de SwiftUI).
     var peticionesDeVentana = 0

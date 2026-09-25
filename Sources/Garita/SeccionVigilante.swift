@@ -6,6 +6,9 @@ import SwiftUI
 struct SeccionVigilante: View {
     @Environment(ModeloApp.self) private var modelo
 
+    /// Muestra el selector de carpetas (ver MenuPrincipal.pedirSelector).
+    var pedirSelector: (Selector) -> Void = { _ in }
+
     /// Cuántas entradas de actividad mostramos.
     private let maxVisibles = 5
 
@@ -32,7 +35,7 @@ struct SeccionVigilante: View {
             }
 
             HStack {
-                Button("Añadir carpeta…", systemImage: "plus") { elegirCarpetas() }
+                Button("Añadir carpeta…", systemImage: "plus") { pedirSelector(.añadirCarpetas) }
                     .controlSize(.small)
                 Spacer()
                 if modelo.carpetasVigiladas.map(\.path) != ModeloApp.carpetasPorDefecto
@@ -82,20 +85,6 @@ struct SeccionVigilante: View {
             ForEach(modelo.actividad.prefix(maxVisibles)) { evento in
                 FilaActividad(evento: evento)
             }
-        }
-    }
-
-    /// Selector de carpetas de macOS (se pueden elegir varias).
-    private func elegirCarpetas() {
-        let selector = NSOpenPanel()
-        selector.canChooseFiles = false
-        selector.canChooseDirectories = true
-        selector.allowsMultipleSelection = true
-        selector.prompt = "Vigilar"
-        selector.message = "Elige las carpetas que Garita debe vigilar"
-        NSApplication.shared.activate()
-        if selector.runModal() == .OK {
-            modelo.añadirCarpetasVigiladas(selector.urls)
         }
     }
 
