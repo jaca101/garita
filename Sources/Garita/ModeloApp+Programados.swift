@@ -136,9 +136,9 @@ extension ModeloApp {
         borradorTarea = tarea ?? TareaProgramada(carpeta: URL.homeDirectory.appending(path: "Downloads").path)
     }
 
-    /// Guarda el borrador: sustituye la tarea si ya existía, o la añade.
-    func guardarBorrador() {
-        guard var tarea = borradorTarea else { return }
+    /// Guarda la tarea editada: la sustituye si ya existía, o la añade.
+    func guardar(_ tarea: TareaProgramada) {
+        var tarea = tarea
         if let i = programados.firstIndex(where: { $0.id == tarea.id }) {
             // Al cambiar la hora no queremos que se dispare al instante por una cita pasada.
             tarea.ultimaEjecucion = max(programados[i].ultimaEjecucion, Date())

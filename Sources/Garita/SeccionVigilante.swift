@@ -23,14 +23,24 @@ struct SeccionVigilante: View {
             }
 
             if modelo.carpetasVigiladas.isEmpty {
-                Text("No se encontró ninguna carpeta que vigilar.")
+                Text("No hay ninguna carpeta vigilada.")
                     .font(.callout).foregroundStyle(.orange)
             } else {
                 ForEach(modelo.carpetasVigiladas, id: \.self) { carpeta in
-                    Label(FileManager.default.displayName(atPath: carpeta.path), systemImage: "folder")
-                        .font(.callout)
-                        .foregroundStyle(modelo.vigilanteActivo ? .primary : .secondary)
-                        .help(carpeta.path)
+                    FilaCarpeta(carpeta: carpeta)
+                }
+            }
+
+            HStack {
+                Button("Añadir carpeta…", systemImage: "plus") { elegirCarpetas() }
+                    .controlSize(.small)
+                Spacer()
+                if modelo.carpetasVigiladas.map(\.path) != ModeloApp.carpetasPorDefecto
+                    .filter({ FileManager.default.fileExists(atPath: $0.path) }).map(\.path) {
+                    Button("Restablecer") { modelo.restablecerCarpetasVigiladas() }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                        .help("Volver a Descargas y aMule Downloads")
                 }
             }
 
@@ -72,6 +82,20 @@ struct SeccionVigilante: View {
             ForEach(modelo.actividad.prefix(maxVisibles)) { evento in
                 FilaActividad(evento: evento)
             }
+        }
+    }
+
+    /// Selector de carpetas de macOS (se pueden elegir varias).
+    private func elegirCarpetas() {
+        let selector = NSOpenPanel()
+        selector.canChooseFiles = false
+        selector.canChooseDirectories = true
+        selector.allowsMultipleSelection = true
+        selector.prompt = "Vigilar"
+        selector.message = "Elige las carpetas que Garita debe vigilar"
+        NSApplication.shared.activate()
+        if selector.runModal() == .OK {
+            modelo.añadirCarpetasVigiladas(selector.urls)
         }
     }
 
@@ -140,6 +164,39 @@ private struct FilaActividad: View {
         case .amenaza(let amenaza):    "\(amenaza) · sin aislar"
         case .noAnalizado(let motivo): motivo
         case .error(let fallo):        fallo
+        }
+    }
+}
+
+/// Una carpeta vigilada: nombre, aviso si no existe y botón para quitarla.
+private struct FilaCarpeta: View {
+    @Environment(ModeloApp.self) private var modelo
+    let carpeta: URL
+
+    var body: some View {
+        let existe = FileManager.default.fileExists(atPath: carpeta.path)
+        HStack {
+            Label {
+                Text(FileManager.default.displayName(atPath: carpeta.path))
+                    .lineLimit(1).truncationMode(.middle)
+                if !existe {
+                    Text("no disponible").font(.caption).foregroundStyle(.orange)
+                }
+            } icon: {
+                Image(systemName: existe ? "folder" : "folder.badge.questionmark")
+            }
+            .font(.callout)
+            .foregroundStyle(modelo.vigilanteActivo && existe ? .primary : .secondary)
+            .help(carpeta.path)
+
+            Spacer()
+
+            Button("Dejar de vigilar", systemImage: "minus.circle") {
+                modelo.quitarCarpetaVigilada(carpeta)
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .help("Dejar de vigilar esta carpeta")
         }
     }
 }

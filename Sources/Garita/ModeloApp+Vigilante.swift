@@ -34,6 +34,28 @@ extension ModeloApp {
         ]
     }
 
+    /// Las carpetas guardadas o, la primera vez, las predeterminadas que existan.
+    static func cargarCarpetasVigiladas() -> [URL] {
+        if let rutas = UserDefaults.standard.stringArray(forKey: "carpetasVigiladas") {
+            return rutas.map { URL(filePath: $0) }
+        }
+        return carpetasPorDefecto.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    /// Añade carpetas a vigilar (sin repetir las que ya están).
+    func añadirCarpetasVigiladas(_ carpetas: [URL]) {
+        let nuevas = carpetas.filter { nueva in !carpetasVigiladas.contains { $0.path == nueva.path } }
+        carpetasVigiladas += nuevas
+    }
+
+    func quitarCarpetaVigilada(_ carpeta: URL) {
+        carpetasVigiladas.removeAll { $0.path == carpeta.path }
+    }
+
+    func restablecerCarpetasVigiladas() {
+        carpetasVigiladas = Self.carpetasPorDefecto.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
     /// Cuántas entradas guardamos en el registro de actividad.
     static let maxActividad = 50
 
@@ -41,12 +63,14 @@ extension ModeloApp {
     func aplicarVigilante() {
         guard let vigilante else { return }
         if vigilanteActivo {
+            // Solo las que existen ahora (un disco externo puede no estar conectado).
+            let existentes = carpetasVigiladas.filter { FileManager.default.fileExists(atPath: $0.path) }
             // Descargas y Documentos son carpetas protegidas: leerlas ahora hace que
             // macOS pida permiso al arrancar, y no más tarde, en mitad de un escaneo.
-            for carpeta in carpetasVigiladas {
+            for carpeta in existentes {
                 _ = try? FileManager.default.contentsOfDirectory(atPath: carpeta.path)
             }
-            vigilante.empezar(carpetas: carpetasVigiladas)
+            vigilante.empezar(carpetas: existentes)
         } else {
             vigilante.detener()
             colaVigilante = []

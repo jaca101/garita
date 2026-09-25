@@ -69,9 +69,13 @@ final class ModeloApp {
     var aislarAutomaticamente = UserDefaults.standard.object(forKey: "aislarAutomaticamente") as? Bool ?? true {
         didSet { UserDefaults.standard.set(aislarAutomaticamente, forKey: "aislarAutomaticamente") }
     }
-    /// Carpetas vigiladas (de las predeterminadas, las que existen).
-    var carpetasVigiladas: [URL] = ModeloApp.carpetasPorDefecto.filter {
-        FileManager.default.fileExists(atPath: $0.path)
+    /// Carpetas vigiladas, elegidas por el usuario (se guardan entre arranques).
+    /// La primera vez: las predeterminadas que existan (Descargas, aMule Downloads).
+    var carpetasVigiladas: [URL] = ModeloApp.cargarCarpetasVigiladas() {
+        didSet {
+            UserDefaults.standard.set(carpetasVigiladas.map(\.path), forKey: "carpetasVigiladas")
+            aplicarVigilante()
+        }
     }
     /// Lo que ha hecho el vigilante, lo más reciente primero.
     var actividad: [EventoVigilante] = []

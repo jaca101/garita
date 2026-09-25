@@ -17,6 +17,9 @@ LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchSe
 
 echo "→ Cerrando Garita si está abierta…"
 pkill -x Garita 2>/dev/null || true
+# Y cualquier escaneo que hubiera lanzado (reconocible por sus opciones de límite),
+# para que no se quede trabajando sin nadie que recoja el resultado.
+pkill -f "clamscan -r --max-filesize=2000M" 2>/dev/null || true
 sleep 1
 
 echo "→ Instalando en /Applications/Garita.app…"
