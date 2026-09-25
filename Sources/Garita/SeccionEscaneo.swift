@@ -237,12 +237,18 @@ struct VistaProgreso: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { contexto in
             VStack(alignment: .leading, spacing: 1) {
-                Text("\(progreso.archivos == 1 ? "1 archivo analizado" : "\(progreso.archivos) archivos analizados") · \(tiempo(hasta: contexto.date))")
-                    .monospacedDigit()
+                if progreso.rapido {
+                    // clamd no informa archivo a archivo: solo el tiempo.
+                    Text("Escaneo rápido (clamd) · \(tiempo(hasta: contexto.date))")
+                        .monospacedDigit()
+                } else {
+                    Text("\(progreso.archivos == 1 ? "1 archivo analizado" : "\(progreso.archivos) archivos analizados") · \(tiempo(hasta: contexto.date))")
+                        .monospacedDigit()
+                }
                 if let ultimo = progreso.ultimo {
                     Text("Último: \(ultimo)")
                         .lineLimit(1).truncationMode(.middle)
-                } else {
+                } else if !progreso.rapido {
                     Text("Cargando las firmas…")
                 }
             }

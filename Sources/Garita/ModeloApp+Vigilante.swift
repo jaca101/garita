@@ -87,8 +87,7 @@ extension ModeloApp {
     /// Si ya hay un lote en marcha, o el motor no está listo, espera.
     func escanearColaVigilante() {
         guard vigilanteEscaneando.isEmpty, !colaVigilante.isEmpty,
-              let motor, let clamscan = motor.clamscan, motor.listo else { return }
-        let opciones = motor.opcionesClamscan
+              let (programa, alternativa) = programas(rapido: true) else { return }
         let huellas = huellasSeguras
 
         let lote = colaVigilante
@@ -97,8 +96,8 @@ extension ModeloApp {
 
         Task {
             let resultado = await Task.detached {
-                let primero = Escaner.escanear(lote, con: clamscan, opciones: opciones) { _ in }
-                let completo = AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                let primero = Escaner.escanear(lote, con: programa, alternativa: alternativa) { _ in }
+                let completo = AnalisisAFondo.completar(primero, programa: programa, alternativa: alternativa,
                                                         prioridadBaja: true, alArrancar: { _ in }, alAvanzar: { _, _ in })
                 return Seguros.filtrar(completo, huellas: huellas)
             }.value

@@ -22,6 +22,7 @@ extension ModeloApp {
             while true {
                 try? await Task.sleep(for: .seconds(60))
                 revisarActualizacionAutomatica()
+                actualizarMemoriaClamd()
                 revisarProgramados()
             }
         }
@@ -47,8 +48,8 @@ extension ModeloApp {
 
     /// Ejecuta una tarea ya (también desde "Ejecutar ahora", sin esperar a la corriente).
     func ejecutar(_ tarea: TareaProgramada) {
-        guard tareaEnCurso == nil, let motor, let clamscan = motor.clamscan, motor.listo else { return }
-        let opciones = motor.opcionesClamscan
+        // Los programados, siempre con clamscan y prioridad baja (no tienen prisa).
+        guard tareaEnCurso == nil, let (programa, _) = programas(rapido: false) else { return }
         let huellas = huellasSeguras
         tareaEnCurso = tarea.id
         programadoCancelado = false
@@ -62,9 +63,9 @@ extension ModeloApp {
                 let alAvanzar: @Sendable (Int, String) -> Void = { archivos, ultimo in
                     Task { @MainActor in self.progresoProgramado?.avanzar(archivos, ultimo) }
                 }
-                let primero = Escaner.escanear([tarea.url], con: clamscan, opciones: opciones, prioridadBaja: true,
+                let primero = Escaner.escanear([tarea.url], con: programa, prioridadBaja: true,
                                                alArrancar: alArrancar, alAvanzar: alAvanzar)
-                let completo = AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                let completo = AnalisisAFondo.completar(primero, programa: programa, alternativa: nil,
                                                         prioridadBaja: true, alArrancar: alArrancar, alAvanzar: alAvanzar)
                 return Seguros.filtrar(completo, huellas: huellas)
             }.value

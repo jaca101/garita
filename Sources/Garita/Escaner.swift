@@ -37,7 +37,17 @@ struct ResultadoEscaneo {
     var fallo: String?
 }
 
-/// Escanea archivos y carpetas con `clamscan`.
+/// Con qué se escanea:
+///   - clamscan: programa independiente; carga las firmas cada vez (~7 s).
+///   - clamdscan: pide el escaneo al servicio clamd, que ya tiene las firmas en
+///     memoria ("escaneo rápido", opcional; ver ServicioClamd.swift).
+struct Programa: Sendable {
+    var ejecutable: URL
+    var opciones: [String] = []
+    var esClamd = false
+}
+
+/// Escanea archivos y carpetas con `clamscan` (o `clamdscan`).
 enum Escaner {
 
     /// Límites. Por defecto clamscan se salta SIN AVISAR lo que los supera; los
@@ -61,10 +71,13 @@ enum Escaner {
     /// `alAvanzar` recibe, como mucho 4 veces por segundo, cuántos archivos van
     /// analizados y el nombre del último (clamscan escribe una línea por archivo
     /// al terminarlo).
+    ///
+    /// `alternativa`: si el programa es clamdscan y clamd no responde, se repite
+    /// el escaneo con esta (clamscan), para que nada se quede sin analizar.
     static func escanear(
         _ rutas: [URL],
-        con clamscan: URL,
-        opciones: [String] = [],
+        con programa: Programa,
+        alternativa: Programa? = nil,
         prioridadBaja: Bool = false,
         alArrancar: @escaping @Sendable (Int32) -> Void,
         alAvanzar: @escaping @Sendable (_ archivos: Int, _ ultimo: String) -> Void = { _, _ in }
@@ -74,12 +87,19 @@ enum Escaner {
         var ultimoAviso = Date.distantPast
         var enResumen = false
 
-        // -r: entrar en subcarpetas. No usamos --infected porque entonces clamscan
-        // no dice qué archivos no pudo leer; filtramos nosotros las líneas "OK".
-        let argumentos = ["-r"] + opcionesLimites + opciones + rutas.map(\.path)
+        let argumentos: [String]
+        if programa.esClamd {
+            // clamd ya sabe sus límites y sus firmas (clamd.conf). --multiscan usa
+            // varios hilos. Solo informa de amenazas y problemas, no de cada archivo.
+            argumentos = programa.opciones + ["--multiscan"] + rutas.map(\.path)
+        } else {
+            // -r: entrar en subcarpetas. No usamos --infected porque entonces clamscan
+            // no dice qué archivos no pudo leer; filtramos nosotros las líneas "OK".
+            argumentos = ["-r"] + opcionesLimites + programa.opciones + rutas.map(\.path)
+        }
 
         guard let proceso = Proceso.ejecutar(
-            clamscan, argumentos: argumentos, prioridadBaja: prioridadBaja, alArrancar: alArrancar,
+            programa.ejecutable, argumentos: argumentos, prioridadBaja: prioridadBaja, alArrancar: alArrancar,
             alRecibirLinea: { linea in
                 // Cada línea "/ruta/archivo: estado" es un archivo terminado.
                 if linea.hasPrefix("----------- SCAN SUMMARY") { enResumen = true }
@@ -92,7 +112,16 @@ enum Escaner {
                     alAvanzar(analizados, URL(filePath: String(linea[..<separador.lowerBound])).lastPathComponent)
                 }
             }) else {
-            return ResultadoEscaneo(fallo: "No se pudo ejecutar clamscan.")
+            return ResultadoEscaneo(fallo: "No se pudo ejecutar \(programa.ejecutable.lastPathComponent).")
+        }
+
+        // clamd no responde (parado, arrancando…): usamos la alternativa.
+        if programa.esClamd && proceso.codigo == 2 && proceso.salida.contains("Could not connect") {
+            if let alternativa {
+                return escanear(rutas, con: alternativa, prioridadBaja: prioridadBaja,
+                                alArrancar: alArrancar, alAvanzar: alAvanzar)
+            }
+            return ResultadoEscaneo(fallo: "El escaneo rápido (clamd) no responde.")
         }
 
         var resultado = interpretar(proceso.salida)

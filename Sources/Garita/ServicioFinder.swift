@@ -60,6 +60,11 @@ final class DelegadoApp: NSObject, NSApplicationDelegate, UNUserNotificationCent
         Task.detached(priority: .background) { AnalisisAFondo.limpiarRestos() }
     }
 
+    /// Al salir de Garita, se cierra también clamd (si el escaneo rápido estaba activo).
+    func applicationWillTerminate(_ notification: Notification) {
+        modelo.clamd.detener()
+    }
+
     /// "Reabrir" la app: doble clic en Garita.app estando ya abierta, o pulsar una
     /// de sus notificaciones. Por defecto SwiftUI mostraría/ocultaría el desplegable
     /// de la barra; nosotros abrimos siempre la ventana.

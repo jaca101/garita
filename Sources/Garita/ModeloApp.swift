@@ -4,6 +4,8 @@ import ServiceManagement
 
 /// Cómo va un escaneo largo: desde cuándo, cuántos archivos y cuál fue el último.
 struct ProgresoEscaneo {
+    /// Con clamd (escaneo rápido): no informa archivo a archivo.
+    var rapido = false
     var inicio = Date()
     var archivos = 0
     var ultimo: String?
@@ -53,6 +55,18 @@ final class ModeloApp {
     /// PID de clamscan mientras escanea, para poder cancelarlo.
     private var pidEscaneo: Int32?
     private var escaneoCancelado = false
+
+    // MARK: Escaneo rápido con clamd (la lógica está en ModeloApp+Clamd.swift)
+
+    /// Opcional; desactivado por defecto (se guarda entre arranques).
+    var escaneoRapido = UserDefaults.standard.bool(forKey: "escaneoRapido") {
+        didSet {
+            UserDefaults.standard.set(escaneoRapido, forKey: "escaneoRapido")
+            aplicarEscaneoRapido()
+        }
+    }
+    var estadoClamd: EstadoClamd = .desactivado
+    @ObservationIgnored let clamd = ServicioClamd()
 
     /// Archivos marcados como seguros (falsos positivos), por huella SHA-256.
     var seguros: [ArchivoSeguro] = Seguros.cargar()
@@ -142,6 +156,9 @@ final class ModeloApp {
     var revisionInicialHecha = false
 
     init() {
+        // Por si quedó un clamd de una ejecución anterior (cierre brusco). Antes
+        // que nada, para no cerrar por error el que arranquemos ahora.
+        ServicioClamd.cerrarHuerfanos()
         comprobarMotor()
         vigilante = Vigilante { [weak self] archivos in
             self?.recibirDelVigilante(archivos)
@@ -205,6 +222,7 @@ final class ModeloApp {
         Task {
             motor = await Task.detached { MotorClamAV.detectar() }.value
             revisarActualizacionAutomatica()
+            aplicarEscaneoRapido()
             escanearPendientes()
             escanearColaVigilante()
         }
@@ -236,6 +254,7 @@ final class ModeloApp {
             errorFirmas = !resultado.ok
             if resultado.ok {
                 ultimaComprobacion = Date()
+                recargarClamdSiActivo()
             }
             comprobarMotor()
         }
@@ -246,17 +265,16 @@ final class ModeloApp {
         guard !rutas.isEmpty else { return }
         // Si aún no se puede, lo guardamos para después (p. ej. el Finder ha
         // arrancado Garita con "Escanear con Garita" y el motor no está detectado).
-        guard let motor, let clamscan = motor.clamscan, motor.listo, !escaneando else {
+        guard let (programa, alternativa) = programas(rapido: true), !escaneando else {
             pendientes += rutas
             return
         }
-        let opciones = motor.opcionesClamscan
         let huellas = huellasSeguras
         escaneando = true
         escaneoCancelado = false
         rutasEscaneo = rutas
         resultadoEscaneo = nil
-        progresoEscaneo = ProgresoEscaneo()
+        progresoEscaneo = ProgresoEscaneo(rapido: programa.esClamd)
 
         Task {
             var resultado = await Task.detached {
@@ -266,10 +284,10 @@ final class ModeloApp {
                 let alAvanzar: @Sendable (Int, String) -> Void = { archivos, ultimo in
                     Task { @MainActor in self.progresoEscaneo?.avanzar(archivos, ultimo) }
                 }
-                let primero = Escaner.escanear(rutas, con: clamscan, opciones: opciones,
+                let primero = Escaner.escanear(rutas, con: programa, alternativa: alternativa,
                                                alArrancar: alArrancar, alAvanzar: alAvanzar)
                 // Lo que no se pudo analizar entero por los límites, a fondo.
-                let completo = AnalisisAFondo.completar(primero, clamscan: clamscan, opciones: opciones,
+                let completo = AnalisisAFondo.completar(primero, programa: programa, alternativa: alternativa,
                                                         prioridadBaja: false, alArrancar: alArrancar, alAvanzar: alAvanzar)
                 // Y fuera los que el usuario marcó como seguros.
                 return Seguros.filtrar(completo, huellas: huellas)

@@ -58,8 +58,8 @@ enum AnalisisAFondo {
     /// se pueda y devuelve el resultado completado. Bloquea: fuera del hilo principal.
     static func completar(
         _ resultado: ResultadoEscaneo,
-        clamscan: URL,
-        opciones: [String],
+        programa: Programa,
+        alternativa: Programa?,
         prioridadBaja: Bool,
         alArrancar: @escaping @Sendable (Int32) -> Void,
         alAvanzar: @escaping @Sendable (Int, String) -> Void
@@ -70,7 +70,7 @@ enum AnalisisAFondo {
 
         for problema in candidatos {
             alAvanzar(resultado.archivosAnalizados ?? 0, "A fondo: \(problema.archivo.lastPathComponent)")
-            let salida = analizar(problema.archivo, clamscan: clamscan, opciones: opciones,
+            let salida = analizar(problema.archivo, programa: programa, alternativa: alternativa,
                                   prioridadBaja: prioridadBaja, alArrancar: alArrancar)
             completado.problemas.removeAll { $0 == problema }
             switch salida {
@@ -102,7 +102,7 @@ enum AnalisisAFondo {
     }
 
     static func analizar(
-        _ archivo: URL, clamscan: URL, opciones: [String], prioridadBaja: Bool,
+        _ archivo: URL, programa: Programa, alternativa: Programa?, prioridadBaja: Bool,
         alArrancar: @escaping @Sendable (Int32) -> Void
     ) -> Salida {
         guard let tipo = tipo(de: archivo) else { return .noSePudo("formato que Garita no sabe abrir") }
@@ -127,7 +127,7 @@ enum AnalisisAFondo {
             defer {
                 _ = Proceso.ejecutar(URL(filePath: "/usr/bin/hdiutil"), argumentos: ["detach", destino.path, "-force"])
             }
-            return escanear(destino, original: archivo, clamscan: clamscan, opciones: opciones,
+            return escanear(destino, original: archivo, programa: programa, alternativa: alternativa,
                             prioridadBaja: prioridadBaja, alArrancar: alArrancar)
 
         case .comprimido:
@@ -139,7 +139,7 @@ enum AnalisisAFondo {
                                            argumentos: ["-xf", archivo.path, "-C", destino.path],
                                            prioridadBaja: prioridadBaja), r.codigo == 0
             else { return .noSePudo("no se pudo descomprimir (¿protegido con contraseña o dañado?)") }
-            return escanear(destino, original: archivo, clamscan: clamscan, opciones: opciones,
+            return escanear(destino, original: archivo, programa: programa, alternativa: alternativa,
                             prioridadBaja: prioridadBaja, alArrancar: alArrancar)
 
         case .paquete:
@@ -151,17 +151,17 @@ enum AnalisisAFondo {
                                            argumentos: ["--expand-full", archivo.path, expandido.path],
                                            prioridadBaja: prioridadBaja), r.codigo == 0
             else { return .noSePudo("no se pudo expandir el paquete") }
-            return escanear(expandido, original: archivo, clamscan: clamscan, opciones: opciones,
+            return escanear(expandido, original: archivo, programa: programa, alternativa: alternativa,
                             prioridadBaja: prioridadBaja, alArrancar: alArrancar)
         }
     }
 
     /// Escanea la carpeta con el contenido y traduce el resultado.
     private static func escanear(
-        _ carpeta: URL, original: URL, clamscan: URL, opciones: [String], prioridadBaja: Bool,
+        _ carpeta: URL, original: URL, programa: Programa, alternativa: Programa?, prioridadBaja: Bool,
         alArrancar: @escaping @Sendable (Int32) -> Void
     ) -> Salida {
-        let r = Escaner.escanear([carpeta], con: clamscan, opciones: opciones,
+        let r = Escaner.escanear([carpeta], con: programa, alternativa: alternativa,
                                  prioridadBaja: prioridadBaja, alArrancar: alArrancar)
         if r.fallo != nil && r.archivosAnalizados == nil { return .cancelado }
         if r.detecciones.isEmpty {

@@ -3,7 +3,7 @@
 # de Cisco para macOS (universal: Apple Silicon + Intel).
 #
 # Resultado en vendor/clamav-integrado/ (construir.sh lo copia a la app):
-#   Helpers/     clamscan, freshclam           → Garita.app/Contents/Helpers/
+#   Helpers/     clamscan, freshclam, clamd, clamdscan → Garita.app/Contents/Helpers/
 #   Frameworks/  libclamav y compañía (.dylib) → Garita.app/Contents/Frameworks/
 #   Resources/   certificado de firmas, licencias y origen del código
 #                                              → Garita.app/Contents/Resources/clamav/
@@ -48,6 +48,9 @@ LIBRERIAS="$TRABAJO/pkg/clamav-$VERSION.macos.universal-libraries.pkg/Payload/us
 rm -rf "$DESTINO"
 mkdir -p "$DESTINO/Helpers" "$DESTINO/Frameworks" "$DESTINO/Resources/certs" "$DESTINO/Resources/licencias"
 cp "$PROGRAMAS/bin/clamscan" "$PROGRAMAS/bin/freshclam" "$DESTINO/Helpers/"
+# Para el "escaneo rápido" opcional: clamd (servicio con las firmas en memoria)
+# y clamdscan (su cliente).
+cp "$PROGRAMAS/sbin/clamd" "$PROGRAMAS/bin/clamdscan" "$DESTINO/Helpers/"
 for nombre in libclamav.12 libclammspack.0 libfreshclam.4 libclamunrar.12 libclamunrar_iface.12; do
     cp -L "$LIBRERIAS/$nombre.dylib" "$DESTINO/Frameworks/$nombre.dylib"
 done

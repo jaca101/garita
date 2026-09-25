@@ -10,6 +10,7 @@ Su función principal es el **vigilante de descargas**: escanea automáticamente
 - **Escaneo a demanda.** Arrastra a la ventana, usa el botón, o haz clic derecho en el Finder → «Escanear con Garita».
 - **ClamAV integrado.** Va dentro de la app, así que no hace falta Homebrew. Las firmas se descargan solas al abrir Garita por primera vez y se actualizan cada 12 horas; también hay un botón para forzarlo.
 - **Cuarentena.** Mueve el archivo (no lo borra), le quita los permisos y lo codifica con XOR para que quede inerte. Cada archivo lleva una ficha JSON legible. Se puede restaurar o eliminar.
+- **Escaneo rápido opcional (clamd).** Mantiene las firmas en memoria (~1,6 GB) y los avisos del vigilante llegan en ~9 s en vez de ~17 s. Viene desactivado; si `clamd` falla, se usa `clamscan`.
 - **Marcar como seguro.** Para los falsos positivos: Garita guarda la huella SHA-256 del archivo y deja de avisar de él mientras no cambie.
 - **Notificaciones nativas** e **historial de avisos**.
 - **Límites amplios y análisis a fondo.** ClamAV revisa archivos de hasta 2 GB y comprimidos con hasta 100 000 archivos o 4 GB de contenido. Lo que aún supere esos límites se abre aparte: las DMG se montan solo lectura, y los ZIP, TAR y PKG se descomprimen en una carpeta temporal si hay espacio. Nada se salta en silencio.

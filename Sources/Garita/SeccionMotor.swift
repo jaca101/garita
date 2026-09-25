@@ -46,6 +46,11 @@ struct SeccionMotor: View {
             Fila(ok: motor.hayFirmas, texto: "Base de firmas", ruta: motor.carpetaFirmas?.path)
         }
 
+        // Escaneo rápido (opcional): solo con el ClamAV integrado, que trae clamd.
+        if ServicioClamd.disponible(motor) {
+            EscaneoRapido()
+        }
+
         // Acceso total al disco: opcional, pero sin él no se leen carpetas protegidas.
         HStack {
             Fila(ok: modelo.accesoTotal, texto: "Acceso total al disco",
@@ -134,6 +139,35 @@ private struct Instruccion: View {
             }
             .padding(8)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+        }
+    }
+}
+
+/// Interruptor del escaneo rápido (clamd) y su estado.
+private struct EscaneoRapido: View {
+    @Environment(ModeloApp.self) private var modelo
+
+    var body: some View {
+        @Bindable var modelo = modelo
+        VStack(alignment: .leading, spacing: 2) {
+            Toggle("Escaneo rápido (clamd)", isOn: $modelo.escaneoRapido)
+                .help("Mantiene las firmas cargadas en memoria (~1,6 GB) para que los escaneos del vigilante y los manuales empiecen al instante. Los programados siguen con clamscan.")
+            Group {
+                switch modelo.estadoClamd {
+                case .desactivado:
+                    Text("Desactivado: cada escaneo carga las firmas (~7 s).")
+                case .arrancando:
+                    Text("Cargando las firmas en memoria…").foregroundStyle(.orange)
+                case .activo(let mb):
+                    Text("Activo" + (mb.map { String(format: " · %.1f GB de memoria", Double($0) / 1024) } ?? ""))
+                        .foregroundStyle(.green)
+                case .error(let motivo):
+                    Text(motivo).foregroundStyle(.red)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
