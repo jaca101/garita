@@ -112,6 +112,7 @@ struct SeccionVigilante: View {
 /// Una línea del registro: icono, archivo, qué pasó y cuándo.
 private struct FilaActividad: View {
     @Environment(ModeloApp.self) private var modelo
+    @Environment(\.pedirConfirmacion) private var pedirConfirmacion
     let evento: EventoVigilante
 
     var body: some View {
@@ -133,9 +134,10 @@ private struct FilaActividad: View {
                     Button("Aislar") { modelo.aislar(evento) }
                         .controlSize(.small)
                     Button("Es seguro") {
-                        if confirmarSeguro(nombre: evento.archivo.lastPathComponent, amenaza: amenaza) {
+                        let modelo = modelo, evento = evento
+                        pedirConfirmacion(.seguro(nombre: evento.archivo.lastPathComponent, amenaza: amenaza) {
                             modelo.marcarSeguro(evento)
-                        }
+                        })
                     }
                     .controlSize(.small)
                 }

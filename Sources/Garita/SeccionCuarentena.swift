@@ -64,6 +64,7 @@ struct SeccionCuarentena: View {
 /// Un archivo en cuarentena: nombre, amenaza, fecha y acciones.
 private struct FilaCuarentena: View {
     @Environment(ModeloApp.self) private var modelo
+    @Environment(\.pedirConfirmacion) private var pedirConfirmacion
     let elemento: ElementoCuarentena
 
     var body: some View {
@@ -81,13 +82,14 @@ private struct FilaCuarentena: View {
                     restaurar()
                 }
                 Button("Restaurar y marcar como seguro…", systemImage: "checkmark.shield") {
-                    if confirmarSeguro(nombre: elemento.nombreOriginal, amenaza: elemento.amenaza) {
+                    let modelo = modelo, elemento = elemento
+                    pedirConfirmacion(.seguro(nombre: elemento.nombreOriginal, amenaza: elemento.amenaza) {
                         Task {
                             if let destino = await modelo.restaurarYMarcarSeguro(elemento) {
                                 NSWorkspace.shared.activateFileViewerSelecting([destino])
                             }
                         }
-                    }
+                    })
                 }
                 Button("Eliminar definitivamente…", systemImage: "trash", role: .destructive) {
                     eliminar()
@@ -100,37 +102,28 @@ private struct FilaCuarentena: View {
         }
     }
 
-    // Confirmamos con una alerta clásica de macOS (NSAlert): funciona igual en
-    // la ventana que en el panel de la barra de menú.
+    // Las confirmaciones van por pedirConfirmacion (ver Selectores.swift):
+    // en la ventana salen como hoja; desde el desplegable, se abre antes la ventana.
 
     private func restaurar() {
-        let ok = confirmar(
+        let modelo = modelo, elemento = elemento
+        pedirConfirmacion(Confirmacion(
             titulo: "¿Restaurar «\(elemento.nombreOriginal)»?",
             texto: "Este archivo contiene «\(elemento.amenaza)». Volverá a:\n\(elemento.rutaOriginal)\n\nRestáuralo solo si estás seguro de que es un falso positivo.",
-            boton: "Restaurar")
-        if ok, let destino = modelo.restaurar(elemento) {
-            NSWorkspace.shared.activateFileViewerSelecting([destino])
-        }
+            boton: "Restaurar") {
+            if let destino = modelo.restaurar(elemento) {
+                NSWorkspace.shared.activateFileViewerSelecting([destino])
+            }
+        })
     }
 
     private func eliminar() {
-        let ok = confirmar(
+        let modelo = modelo, elemento = elemento
+        pedirConfirmacion(Confirmacion(
             titulo: "¿Eliminar «\(elemento.nombreOriginal)» definitivamente?",
             texto: "El archivo se borrará para siempre (no va a la Papelera). Esta acción no se puede deshacer.",
-            boton: "Eliminar")
-        if ok {
+            boton: "Eliminar") {
             modelo.eliminar(elemento)
-        }
-    }
-
-    private func confirmar(titulo: String, texto: String, boton: String) -> Bool {
-        let alerta = NSAlert()
-        alerta.messageText = titulo
-        alerta.informativeText = texto
-        alerta.alertStyle = .warning
-        alerta.addButton(withTitle: boton)
-        alerta.addButton(withTitle: "Cancelar")
-        NSApplication.shared.activate()
-        return alerta.runModal() == .alertFirstButtonReturn
+        })
     }
 }

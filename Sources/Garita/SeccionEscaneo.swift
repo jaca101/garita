@@ -179,6 +179,7 @@ private struct VistaResultado: View {
 /// Finder y botón para ponerlo en cuarentena.
 private struct FilaDeteccion: View {
     @Environment(ModeloApp.self) private var modelo
+    @Environment(\.pedirConfirmacion) private var pedirConfirmacion
     let deteccion: Deteccion
 
     var body: some View {
@@ -205,9 +206,10 @@ private struct FilaDeteccion: View {
                     .controlSize(.small)
                     .help("Mover a la cuarentena")
                 Button("Es seguro") {
-                    if confirmarSeguro(nombre: deteccion.archivo.lastPathComponent, amenaza: deteccion.amenaza) {
+                    let modelo = modelo, deteccion = deteccion
+                    pedirConfirmacion(.seguro(nombre: deteccion.archivo.lastPathComponent, amenaza: deteccion.amenaza) {
                         modelo.marcarSeguro(deteccion)
-                    }
+                    })
                 }
                 .controlSize(.small)
                 .help("Falso positivo: no volver a avisar de este archivo mientras no cambie")

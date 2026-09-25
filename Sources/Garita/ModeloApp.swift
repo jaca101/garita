@@ -50,6 +50,8 @@ final class ModeloApp {
     /// Selector de archivos pedido desde el desplegable, que la ventana mostrará
     /// como hoja en cuanto aparezca (ver Selectores.swift).
     var selectorPendiente: Selector?
+    /// Igual, para una confirmación pedida desde el desplegable.
+    var confirmacionPendiente: Confirmacion?
     /// Se incrementa para pedir que se abra la ventana (lo vigila IconoBarra,
     /// que es quien puede abrir ventanas de SwiftUI).
     var peticionesDeVentana = 0

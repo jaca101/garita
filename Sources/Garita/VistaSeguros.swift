@@ -1,27 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Confirmación antes de marcar algo como seguro (es una decisión importante:
-/// Garita dejará de avisar de ese archivo).
-@MainActor
-func confirmarSeguro(nombre: String, amenaza: String) -> Bool {
-    let alerta = NSAlert()
-    alerta.messageText = "¿Marcar «\(nombre)» como seguro?"
-    alerta.informativeText = """
-    ClamAV lo detecta como «\(amenaza)». Garita dejará de avisar de este archivo \
-    mientras no cambie (se reconoce por su huella SHA-256; si cambia un solo byte, \
-    se vuelve a analizar).
-
-    Hazlo solo si has comprobado que es un falso positivo, por ejemplo comparando \
-    su huella con la que publica el fabricante.
-    """
-    alerta.alertStyle = .warning
-    alerta.addButton(withTitle: "Marcar como seguro")
-    alerta.addButton(withTitle: "Cancelar")
-    NSApplication.shared.activate()
-    return alerta.runModal() == .alertFirstButtonReturn
-}
-
 /// Enlace «N archivos marcados como seguros…» con la lista en un globo.
 struct EnlaceSeguros: View {
     @Environment(ModeloApp.self) private var modelo

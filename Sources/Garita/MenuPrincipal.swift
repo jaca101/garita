@@ -42,8 +42,33 @@ struct MenuPrincipal: View {
         // ventana crezca con él en vez de recortarlo.
         .fixedSize(horizontal: false, vertical: true)
         // En la ventana: atender el selector que se pidió desde el desplegable.
-        .onAppear { atenderSelectorPendiente() }
+        .onAppear { atenderSelectorPendiente(); atenderConfirmacionPendiente() }
         .onChange(of: modelo.selectorPendiente) { atenderSelectorPendiente() }
+        .onChange(of: modelo.confirmacionPendiente?.id) { atenderConfirmacionPendiente() }
+        // Todas las secciones piden sus confirmaciones por aquí.
+        .environment(\.pedirConfirmacion, AccionConfirmar(enVentana: enVentana) { pedirConfirmacion($0) })
+    }
+
+    /// Confirmaciones: igual que los selectores (en la ventana, como hoja; desde
+    /// el desplegable, abriendo antes la ventana, que la muestra).
+    private func pedirConfirmacion(_ confirmacion: Confirmacion) {
+        if enVentana {
+            Selectores.mostrar(confirmacion)
+        } else {
+            modelo.confirmacionPendiente = confirmacion
+            cerrarDesplegable()
+            abrirVentana(id: "principal")
+            NSApplication.shared.activate()
+        }
+    }
+
+    private func atenderConfirmacionPendiente() {
+        guard enVentana, let confirmacion = modelo.confirmacionPendiente else { return }
+        modelo.confirmacionPendiente = nil
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            Selectores.mostrar(confirmacion)
+        }
     }
 
     /// Selectores de archivos: en la ventana, como hoja pegada a ella. Desde el
