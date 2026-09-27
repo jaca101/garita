@@ -64,6 +64,17 @@ private struct FormularioTarea: View {
             }
 
             Section {
+                Toggle("Saltar archivos sin cambios", isOn: $tarea.incremental)
+                if tarea.incremental {
+                    Stepper("Repasar todo cada \(tarea.dias) días", value: $tarea.dias, in: 1...30)
+                }
+            } footer: {
+                Text("Solo se analiza lo nuevo o modificado. Cada \(tarea.dias) días se repasa todo, porque ClamAV publica firmas nuevas a diario y algo que hoy parece limpio puede no serlo mañana.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Text("Si a esa hora el Mac está dormido o con batería, se hará en cuanto esté despierto y enchufado. Se ejecuta con prioridad baja para no ralentizar el Mac.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

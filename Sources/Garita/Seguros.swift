@@ -49,13 +49,20 @@ enum Seguros {
         return huella.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Quita del resultado las detecciones de archivos marcados como seguros.
-    /// Solo calcula la huella de los archivos detectados (suelen ser muy pocos).
-    static func filtrar(_ resultado: ResultadoEscaneo, huellas: Set<String>) -> ResultadoEscaneo {
-        guard !huellas.isEmpty, !resultado.detecciones.isEmpty else { return resultado }
+    /// Quita del resultado las detecciones de archivos marcados como seguros,
+    /// y también sus avisos de "sin analizar" (p. ej. por tardar demasiado).
+    /// Solo calcula la huella de los detectados (suelen ser muy pocos) y de los
+    /// "sin analizar" cuya ruta coincide con la de algún seguro.
+    static func filtrar(_ resultado: ResultadoEscaneo, huellas: Set<String>,
+                        rutas: Set<String> = []) -> ResultadoEscaneo {
+        guard !huellas.isEmpty else { return resultado }
         var filtrado = resultado
         filtrado.detecciones.removeAll { deteccion in
             guard let huella = sha256(deteccion.archivo) else { return false }
+            return huellas.contains(huella)
+        }
+        filtrado.problemas.removeAll { problema in
+            guard rutas.contains(problema.archivo.path), let huella = sha256(problema.archivo) else { return false }
             return huellas.contains(huella)
         }
         return filtrado

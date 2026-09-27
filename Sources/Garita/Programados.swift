@@ -20,6 +20,20 @@ struct TareaProgramada: Codable, Identifiable, Equatable {
     /// Archivos que no se pudieron analizar (del todo) en la última ejecución,
     /// como "ruta: motivo". Opcional para leer listas guardadas antes de existir.
     var ultimosProblemas: [String]?
+    /// Saltar los archivos sin cambios analizados hace menos de `diasRepaso` días
+    /// (ver CacheEscaneo). Opcionales para leer tareas guardadas antes de existir.
+    var saltarSinCambios: Bool?
+    var diasRepaso: Int?
+
+    /// Por defecto, sí, repasando todo cada 7 días.
+    var incremental: Bool {
+        get { saltarSinCambios ?? true }
+        set { saltarSinCambios = newValue }
+    }
+    var dias: Int {
+        get { diasRepaso ?? 7 }
+        set { diasRepaso = newValue }
+    }
 
     var url: URL { URL(filePath: carpeta) }
 
@@ -48,9 +62,13 @@ struct TareaProgramada: Codable, Identifiable, Equatable {
         let horaTexto = String(format: "%02d:%02d", hora, minuto)
         if frecuencia == "semanal" {
             let dia = Calendar.current.weekdaySymbols[(diaSemana - 1) % 7]
-            return "Cada \(dia) a las \(horaTexto)"
+            return "Cada \(dia) a las \(horaTexto)" + extra
         }
-        return "Cada día a las \(horaTexto)"
+        return "Cada día a las \(horaTexto)" + extra
+    }
+
+    private var extra: String {
+        incremental ? " · solo cambios (repaso completo cada \(dias) días)" : ""
     }
 }
 

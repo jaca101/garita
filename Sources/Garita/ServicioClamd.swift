@@ -70,6 +70,7 @@ final class ServicioClamd {
         MaxFileSize 2000M
         MaxScanSize 4000M
         MaxFiles 100000
+        MaxScanTime 600000
         AlertExceedsMax yes
 
         """
@@ -149,12 +150,18 @@ final class ServicioClamd {
         try? FileManager.default.removeItem(at: Self.socket)
     }
 
-    /// Memoria que ocupa clamd ahora (en MB), según `ps`.
+    /// Memoria que ocupa clamd ahora (en MB): su huella real ("phys_footprint"),
+    /// la misma que muestra el Monitor de Actividad. Incluye la parte que macOS
+    /// comprime cuando clamd está inactivo (`ps` solo cuenta la que no lo está,
+    /// y tras un rato sin uso daba casi 0).
     func memoriaMB() async -> Int? {
         guard let pid = proceso?.processIdentifier else { return nil }
-        return await Task.detached {
-            let r = Proceso.ejecutar(URL(filePath: "/bin/ps"), argumentos: ["-o", "rss=", "-p", "\(pid)"])
-            return r.flatMap { Int($0.salida.trimmingCharacters(in: .whitespaces)) }.map { $0 / 1024 }
-        }.value
+        var uso = rusage_info_v4()
+        let ok = withUnsafeMutablePointer(to: &uso) { puntero in
+            puntero.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) {
+                proc_pid_rusage(pid, RUSAGE_INFO_V4, $0) == 0
+            }
+        }
+        return ok ? Int(uso.ri_phys_footprint / 1_048_576) : nil
     }
 }

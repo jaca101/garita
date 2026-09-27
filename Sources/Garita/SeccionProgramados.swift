@@ -131,7 +131,7 @@ private struct ListaProblemas: View {
                 }
             }
             .frame(maxHeight: 360)
-            Text("Suelen ser archivos de más de 2 GB, comprimidos con contraseña o que superan los límites de ClamAV.")
+            Text("El motivo aparece junto a cada archivo. Los que no cambien no se recuerdan: se vuelven a intentar en cada escaneo.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding()

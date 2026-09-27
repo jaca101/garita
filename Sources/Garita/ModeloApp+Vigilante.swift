@@ -88,7 +88,7 @@ extension ModeloApp {
     func escanearColaVigilante() {
         guard vigilanteEscaneando.isEmpty, !colaVigilante.isEmpty,
               let (programa, alternativa) = programas(rapido: true) else { return }
-        let huellas = huellasSeguras
+        let huellas = huellasSeguras, rutasSeg = rutasSeguras
 
         let lote = colaVigilante
         colaVigilante = []
@@ -99,7 +99,7 @@ extension ModeloApp {
                 let primero = Escaner.escanear(lote, con: programa, alternativa: alternativa) { _ in }
                 let completo = AnalisisAFondo.completar(primero, programa: programa, alternativa: alternativa,
                                                         prioridadBaja: true, alArrancar: { _ in }, alAvanzar: { _, _ in })
-                return Seguros.filtrar(completo, huellas: huellas)
+                return Seguros.filtrar(completo, huellas: huellas, rutas: rutasSeg)
             }.value
             vigilanteEscaneando = []
             registrar(lote, resultado)

@@ -33,6 +33,8 @@ struct ResultadoEscaneo {
     var archivosAnalizados: Int?
     var duracion: TimeInterval = 0
     var cancelado = false
+    /// Archivos que no se analizaron por no haber cambiado (escaneos programados).
+    var saltados = 0
     /// Si clamscan ni siquiera pudo ejecutarse, el motivo.
     var fallo: String?
 }
@@ -57,10 +59,13 @@ enum Escaner {
     ///   --max-scansize  hasta 4 GB de contenido descomprimido por archivo (por defecto 400 MB)
     ///   --max-files     hasta 100 000 archivos dentro de un comprimido (por defecto
     ///                   10 000; p. ej. la copia de una web en tar.gz tenía 12 065)
+    ///   --max-scantime  hasta 10 minutos por archivo (por defecto 2; el instalador
+    ///                   de Exodus o un vídeo largo lo superaban)
     static let opcionesLimites = [
         "--max-filesize=2000M",
         "--max-scansize=4000M",
         "--max-files=100000",
+        "--max-scantime=600000",
         "--alert-exceeds-max=yes",
     ]
 
@@ -87,15 +92,30 @@ enum Escaner {
         var ultimoAviso = Date.distantPast
         var enResumen = false
 
+        // Muchos archivos sueltos (p. ej. los "cambiados" de un escaneo programado):
+        // en vez de ponerlos en la línea de órdenes, que tiene un límite, se le
+        // pasan en un archivo de lista (--file-list, una ruta por línea).
+        var rutasArgumento = rutas.map(\.path)
+        var lista: URL?
+        if rutas.count > 100 {
+            let archivoLista = FileManager.default.temporaryDirectory
+                .appending(path: "garita-lista-\(UUID().uuidString).txt")
+            if (try? rutasArgumento.joined(separator: "\n").write(to: archivoLista, atomically: true, encoding: .utf8)) != nil {
+                lista = archivoLista
+                rutasArgumento = ["--file-list=\(archivoLista.path)"]
+            }
+        }
+        defer { if let lista { try? FileManager.default.removeItem(at: lista) } }
+
         let argumentos: [String]
         if programa.esClamd {
             // clamd ya sabe sus límites y sus firmas (clamd.conf). --multiscan usa
             // varios hilos. Solo informa de amenazas y problemas, no de cada archivo.
-            argumentos = programa.opciones + ["--multiscan"] + rutas.map(\.path)
+            argumentos = programa.opciones + ["--multiscan"] + rutasArgumento
         } else {
             // -r: entrar en subcarpetas. No usamos --infected porque entonces clamscan
             // no dice qué archivos no pudo leer; filtramos nosotros las líneas "OK".
-            argumentos = ["-r"] + opcionesLimites + programa.opciones + rutas.map(\.path)
+            argumentos = ["-r"] + opcionesLimites + programa.opciones + rutasArgumento
         }
 
         guard let proceso = Proceso.ejecutar(
@@ -159,6 +179,18 @@ enum Escaner {
             // Avisos internos del motor: no son de ningún archivo concreto.
             if linea.hasPrefix("LibClamAV") { continue }
 
+            // "WARNING: Can't open file /ruta: motivo" (sin permiso de lectura).
+            let noSePudoAbrir = "WARNING: Can't open file "
+            if linea.hasPrefix(noSePudoAbrir),
+               let separador = linea.range(of: ": ", options: .backwards),
+               separador.lowerBound > linea.index(linea.startIndex, offsetBy: noSePudoAbrir.count) {
+                let ruta = String(linea[linea.index(linea.startIndex, offsetBy: noSePudoAbrir.count)..<separador.lowerBound])
+                let motivo = String(linea[separador.upperBound...])
+                resultado.problemas.append(Problema(archivo: URL(filePath: ruta), motivo: motivoPermiso(motivo)))
+                continue
+            }
+            if linea.hasPrefix("WARNING:") { continue }   // otros avisos generales
+
             // Separamos por el ÚLTIMO ": ", porque el nombre del archivo
             // también podría contener ": ".
             guard let separador = linea.range(of: ": ", options: .backwards) else { continue }
@@ -184,12 +216,27 @@ enum Escaner {
         return resultado
     }
 
+    /// Traduce los motivos por los que clamscan no pudo abrir un archivo.
+    private static func motivoPermiso(_ motivo: String) -> String {
+        switch motivo {
+        case "Operation not permitted":
+            // Suele ser la marca com.apple.macl: macOS reserva el archivo a la app
+            // que lo creó; ni el Acceso total al disco lo permite.
+            return "protegido por macOS: solo la app que lo creó (p. ej. WhatsApp) puede abrirlo"
+        case "Permission denied", "Access denied":
+            return "sin permiso de lectura"
+        default:
+            return motivo
+        }
+    }
+
     /// Traduce el aviso de límites de clamscan a algo legible.
     private static func motivoLimite(_ aviso: String) -> String {
         if aviso.hasSuffix("MaxFileSize") { return "no analizado: más de 2 GB" }
         if aviso.hasSuffix("MaxScanSize") { return "analizado solo en parte: más de 4 GB descomprimido" }
         if aviso.hasSuffix("MaxFiles") { return "analizado solo en parte: más de 100 000 archivos dentro" }
         if aviso.hasSuffix("MaxRecursion") { return "analizado solo en parte: demasiados comprimidos unos dentro de otros" }
+        if aviso.hasSuffix("MaxScanTime") { return "analizado solo en parte: tardaba más de 10 minutos" }
         return "analizado solo en parte: límite de ClamAV (\(aviso))"
     }
 }

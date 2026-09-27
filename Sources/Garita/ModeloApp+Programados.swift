@@ -50,7 +50,7 @@ extension ModeloApp {
     func ejecutar(_ tarea: TareaProgramada) {
         // Los programados, siempre con clamscan y prioridad baja (no tienen prisa).
         guard tareaEnCurso == nil, let (programa, _) = programas(rapido: false) else { return }
-        let huellas = huellasSeguras
+        let huellas = huellasSeguras, rutasSeg = rutasSeguras
         tareaEnCurso = tarea.id
         programadoCancelado = false
         progresoProgramado = ProgresoEscaneo()
@@ -63,11 +63,28 @@ extension ModeloApp {
                 let alAvanzar: @Sendable (Int, String) -> Void = { archivos, ultimo in
                     Task { @MainActor in self.progresoProgramado?.avanzar(archivos, ultimo) }
                 }
-                let primero = Escaner.escanear([tarea.url], con: programa, prioridadBaja: true,
+                // "Solo cambios": qué archivos hay que analizar esta vez.
+                let registro = tarea.incremental ? CacheEscaneo.cargar(tarea.id) : [:]
+                let plan = tarea.incremental
+                    ? CacheEscaneo.planificar(tarea.url, registro: registro, dias: tarea.dias) : nil
+                if let plan, plan.aEscanear.isEmpty {
+                    return ResultadoEscaneo(archivosAnalizados: 0, saltados: plan.saltados)
+                }
+                let rutas = plan.map { $0.aEscanear.map(\.url) } ?? [tarea.url]
+
+                let primero = Escaner.escanear(rutas, con: programa, prioridadBaja: true,
                                                alArrancar: alArrancar, alAvanzar: alAvanzar)
                 let completo = AnalisisAFondo.completar(primero, programa: programa, alternativa: nil,
                                                         prioridadBaja: true, alArrancar: alArrancar, alAvanzar: alAvanzar)
-                return Seguros.filtrar(completo, huellas: huellas)
+                var final = Seguros.filtrar(completo, huellas: huellas, rutas: rutasSeg)
+                final.saltados = plan?.saltados ?? 0
+
+                // Recordar lo analizado limpio (si el escaneo terminó bien).
+                if let plan, !final.cancelado, final.fallo == nil, primero.archivosAnalizados != nil {
+                    CacheEscaneo.guardar(CacheEscaneo.actualizar(registro, plan: plan, resultado: final),
+                                         tarea: tarea.id)
+                }
+                return final
             }.value
             progresoProgramado = nil
             resultado.cancelado = programadoCancelado
@@ -146,7 +163,13 @@ extension ModeloApp {
             partes.append(texto)
         }
         if let analizados = r.archivosAnalizados {
-            partes.append(analizados == 1 ? "1 archivo" : "\(analizados) archivos")
+            if r.saltados > 0 {
+                // "3 analizados · 1284 sin cambios"
+                partes.append(analizados == 1 ? "1 analizado" : "\(analizados) analizados")
+                partes.append("\(r.saltados) sin cambios")
+            } else {
+                partes.append(analizados == 1 ? "1 archivo" : "\(analizados) archivos")
+            }
         }
         if !r.problemas.isEmpty {
             partes.append("\(r.problemas.count) sin analizar")
@@ -189,5 +212,6 @@ extension ModeloApp {
     func eliminar(_ tarea: TareaProgramada) {
         programados.removeAll { $0.id == tarea.id }
         Programados.guardar(programados)
+        CacheEscaneo.borrar(tarea.id)
     }
 }

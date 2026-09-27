@@ -77,6 +77,7 @@ final class ModeloApp {
     var seguros: [ArchivoSeguro] = Seguros.cargar()
     /// Huellas de los seguros, para pasárselas a los escaneos.
     var huellasSeguras: Set<String> { Set(seguros.map(\.sha256)) }
+    var rutasSeguras: Set<String> { Set(seguros.map(\.ruta)) }
 
     /// Archivos en cuarentena, lo más reciente primero.
     var cuarentena: [ElementoCuarentena] = Cuarentena.listar()
@@ -274,7 +275,7 @@ final class ModeloApp {
             pendientes += rutas
             return
         }
-        let huellas = huellasSeguras
+        let huellas = huellasSeguras, rutasSeg = rutasSeguras
         escaneando = true
         escaneoCancelado = false
         rutasEscaneo = rutas
@@ -295,7 +296,7 @@ final class ModeloApp {
                 let completo = AnalisisAFondo.completar(primero, programa: programa, alternativa: alternativa,
                                                         prioridadBaja: false, alArrancar: alArrancar, alAvanzar: alAvanzar)
                 // Y fuera los que el usuario marcó como seguros.
-                return Seguros.filtrar(completo, huellas: huellas)
+                return Seguros.filtrar(completo, huellas: huellas, rutas: rutasSeg)
             }.value
             progresoEscaneo = nil
             resultado.cancelado = escaneoCancelado
