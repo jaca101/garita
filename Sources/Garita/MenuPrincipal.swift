@@ -12,8 +12,8 @@ struct MenuPrincipal: View {
     /// Dentro del panel de la barra, cierra el panel.
     @Environment(\.dismiss) private var cerrarDesplegable
 
-    /// Altura máxima de la parte central (con scroll): la pantalla menos un margen
-    /// para la barra de menú, la cabecera y el pie.
+    /// Altura máxima de la parte central: la pantalla menos un margen para la
+    /// barra de menú, el título de la ventana, la cabecera y el pie.
     private var altoMaximoCentro: CGFloat {
         (NSScreen.main?.visibleFrame.height ?? 800) - 200
     }
@@ -25,22 +25,32 @@ struct MenuPrincipal: View {
 
             Divider()
 
-            // La parte central se desplaza si no cabe; cabecera y pie quedan fijos.
-            ScrollView {
-                secciones
-                    .padding()
+            if enVentana {
+                // En la ventana, sin scroll: las secciones se reparten en columnas
+                // y la ventana se ensancha lo que haga falta.
+                ColumnasFluidas(anchoColumna: 340, altoMaximo: altoMaximoCentro) {
+                    seccionesEnTarjetas
+                }
+                .padding()
+            } else {
+                // En el desplegable, la parte central se desplaza si no cabe;
+                // cabecera y pie quedan fijos.
+                ScrollView {
+                    secciones
+                        .padding()
+                }
+                .frame(maxHeight: altoMaximoCentro)
             }
-            .frame(maxHeight: altoMaximoCentro)
 
             Divider()
 
             pie
                 .padding()
         }
-        .frame(width: 320)
-        // Altura = la que pida el contenido (con el tope de arriba), para que la
-        // ventana crezca con él en vez de recortarlo.
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: enVentana ? nil : 320)
+        // Tamaño = el que pida el contenido, para que la ventana crezca con él
+        // en vez de recortarlo (en el desplegable, el ancho es fijo).
+        .fixedSize(horizontal: enVentana, vertical: true)
         // En la ventana: atender el selector que se pidió desde el desplegable.
         .onAppear { atenderSelectorPendiente(); atenderConfirmacionPendiente() }
         .onChange(of: modelo.selectorPendiente) { atenderSelectorPendiente() }
@@ -115,18 +125,6 @@ struct MenuPrincipal: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .help("Historial de avisos")
-            if !enVentana {
-                // El panel se cierra al hacer clic fuera, así que no sirve para
-                // arrastrar desde el Finder; la ventana sí (y sale en ⌘Tab).
-                Button("Abrir ventana", systemImage: "macwindow") {
-                    cerrarDesplegable()     // el panel de la barra se va…
-                    abrirVentana(id: "principal")   // …y queda solo la ventana
-                    NSApplication.shared.activate()
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .help("Abrir en una ventana (sale en ⌘Tab y admite arrastrar archivos)")
-            }
         }
     }
 
@@ -156,6 +154,17 @@ struct MenuPrincipal: View {
         }
     }
 
+    /// Las mismas secciones, cada una en su tarjeta, para repartirlas en columnas.
+    @ViewBuilder
+    private var seccionesEnTarjetas: some View {
+        SeccionVigilante(pedirSelector: pedirSelector).tarjeta()
+        SeccionEscaneo(admiteArrastrar: true, pedirSelector: pedirSelector).tarjeta()
+        SeccionCuarentena().tarjeta()
+        SeccionProgramados(cerrarDesplegable: nil).tarjeta()
+        SeccionFirmas().tarjeta()
+        SeccionMotor().tarjeta()
+    }
+
     @ViewBuilder
     private var pie: some View {
         if enVentana {
@@ -165,10 +174,21 @@ struct MenuPrincipal: View {
             }
             .keyboardShortcut("w")
         } else {
-            Button("Salir de Garita") {
-                NSApplication.shared.terminate(nil)
+            HStack {
+                // El panel se cierra al hacer clic fuera, así que no sirve para
+                // arrastrar desde el Finder; la ventana sí (y sale en ⌘Tab).
+                Button("Abrir en una ventana", systemImage: "macwindow") {
+                    cerrarDesplegable()     // el panel de la barra se va…
+                    abrirVentana(id: "principal")   // …y queda solo la ventana
+                    NSApplication.shared.activate()
+                }
+                .help("Abrir Garita en una ventana: se ve todo sin desplazarse, sale en ⌘Tab y admite arrastrar archivos")
+                Spacer()
+                Button("Salir de Garita") {
+                    NSApplication.shared.terminate(nil)
+                }
+                .keyboardShortcut("q")
             }
-            .keyboardShortcut("q")
         }
     }
 }
