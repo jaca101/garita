@@ -7,6 +7,7 @@ import Foundation
 /// entrega archivos que:
 ///   - han aparecido (creados, renombrados o modificados) después de arrancar,
 ///   - no son ocultos ni temporales de descarga (.crdownload, .part…),
+///   - no están dentro de la carpeta interna de un repositorio git (.git/),
 ///   - llevan un rato sin cambiar de tamaño (la descarga ha terminado).
 /// Varios archivos que llegan seguidos se entregan juntos, en un solo lote,
 /// para escanearlos con una sola ejecución de clamscan.
@@ -131,6 +132,11 @@ final class Vigilante {
         guard FileManager.default.fileExists(atPath: archivo.path) else { return false }
         // Ocultos (.DS_Store y similares).
         if archivo.lastPathComponent.hasPrefix(".") { return false }
+        // Interior de un repositorio git: objetos comprimidos en el formato de git,
+        // que ClamAV apenas puede leer; el código del repositorio ya se analiza
+        // en sus archivos normales. (Sin esto, cada clon o commit genera un lote
+        // de cientos de archivos.)
+        if archivo.pathComponents.contains(".git") { return false }
         // Temporales de descarga, o archivos dentro de una descarga de Safari (X.download/).
         for componente in archivo.pathComponents {
             let ext = (componente as NSString).pathExtension.lowercased()
