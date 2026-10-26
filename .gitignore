@@ -3,3 +3,6 @@ build/
 .swiftpm/
 .DS_Store
 vendor/
+
+# Notas personales del proyecto: solo en local, no se publican.
+CONTEXTO.md
