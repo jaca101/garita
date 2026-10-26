@@ -151,6 +151,10 @@ struct MenuPrincipal: View {
             Divider()
 
             SeccionMotor()
+
+            Divider()
+
+            SeccionActualizaciones()
         }
     }
 
@@ -163,6 +167,7 @@ struct MenuPrincipal: View {
         SeccionProgramados(cerrarDesplegable: nil).tarjeta()
         SeccionFirmas().tarjeta()
         SeccionMotor().tarjeta()
+        SeccionActualizaciones().tarjeta()
     }
 
     @ViewBuilder

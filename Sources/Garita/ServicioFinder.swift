@@ -45,8 +45,8 @@ final class DelegadoApp: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// compartan el mismo.
     let modelo = ModeloApp()
     private var servicio: ServicioFinder?
-    /// Registro en el log del sistema (se ve con: log show --predicate 'subsystem == "local.garita"').
-    private nonisolated let registro = Logger(subsystem: "local.garita", category: "app")
+    /// Registro en el log del sistema (se ve con: log show --predicate 'subsystem == "io.github.jaca101.garita"').
+    private nonisolated let registro = Logger(subsystem: "io.github.jaca101.garita", category: "app")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let servicio = ServicioFinder(modelo: modelo)

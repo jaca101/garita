@@ -73,6 +73,9 @@ final class ModeloApp {
     var estadoClamd: EstadoClamd = .desactivado
     @ObservationIgnored let clamd = ServicioClamd()
 
+    /// Actualizaciones de la propia Garita (Sparkle + GitHub Releases).
+    @ObservationIgnored let actualizaciones = Actualizaciones()
+
     /// Archivos marcados como seguros (falsos positivos), por huella SHA-256.
     var seguros: [ArchivoSeguro] = Seguros.cargar()
     /// Huellas de los seguros, para pasárselas a los escaneos.

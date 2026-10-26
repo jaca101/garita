@@ -59,7 +59,7 @@ ClamAV es © Cisco Systems, Inc., con licencia GNU GPLv2. Su licencia y el enlac
 - **Firmas y configuración de ClamAV:** `~/Library/Application Support/Garita/clamav/`
 - **Cuarentena:** `~/Library/Application Support/Garita/Cuarentena/`
 - **Historial de avisos:** `~/Library/Application Support/Garita/historial.json`
-- **Ajustes:** `defaults read local.garita`
+- **Ajustes:** `defaults read io.github.jaca101.garita`
 
 ## Planes
 

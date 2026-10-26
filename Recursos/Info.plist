@@ -11,15 +11,15 @@
 	<key>CFBundleIconFile</key>
 	<string>Garita</string>
 	<key>CFBundleIdentifier</key>
-	<string>local.garita</string>
+	<string>io.github.jaca101.garita</string>
 	<key>CFBundleName</key>
 	<string>Garita</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.1</string>
+	<string>0.2.2</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>4</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>LSUIElement</key>
@@ -44,5 +44,13 @@
 			</array>
 		</dict>
 	</array>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/jaca101/garita/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>PYsKC9c6f+kKkZUzZGV3gxeXe1qcGd64+AwAl1jh0ag=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

@@ -22,8 +22,13 @@ swift build -c release "${ARQUITECTURAS[@]}"
 echo "→ Empaquetando $APP…"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$(swift build -c release "${ARQUITECTURAS[@]}" --show-bin-path)/Garita" "$APP/Contents/MacOS/"
+BINARIOS="$(swift build -c release "${ARQUITECTURAS[@]}" --show-bin-path)"
+cp "$BINARIOS/Garita" "$APP/Contents/MacOS/"
 cp Recursos/Info.plist "$APP/Contents/"
+
+# Sparkle (actualizaciones automáticas): el binario lo busca en Contents/Frameworks.
+mkdir -p "$APP/Contents/Frameworks"
+ditto "$BINARIOS/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 
 echo "→ Generando el icono desde Recursos/Icono-1024.png…"
 # macOS pide cada tamaño en normal y @2x; sips los reescala e iconutil los junta en un .icns.
@@ -61,6 +66,13 @@ fi
 for interno in "$APP"/Contents/Frameworks/*.dylib(N) "$APP"/Contents/Helpers/*(N); do
     codesign --force --sign "$FIRMA" "$interno" 2>/dev/null
 done
+# Sparkle: sus piezas internas primero y el framework al final (orden de su documentación).
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+codesign --force --sign "$FIRMA" "$SPARKLE/XPCServices/Installer.xpc"
+codesign --force --sign "$FIRMA" --preserve-metadata=entitlements "$SPARKLE/XPCServices/Downloader.xpc"
+codesign --force --sign "$FIRMA" "$SPARKLE/Autoupdate"
+codesign --force --sign "$FIRMA" "$SPARKLE/Updater.app"
+codesign --force --sign "$FIRMA" "$APP/Contents/Frameworks/Sparkle.framework"
 codesign --force --sign "$FIRMA" "$APP"
 
 echo "✓ Listo: $APP"
