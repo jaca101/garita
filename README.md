@@ -14,6 +14,7 @@ Su función principal es el **vigilante de descargas**: escanea automáticamente
 - **Escaneo rápido opcional (clamd).** Mantiene las firmas en memoria (~1,6 GB) y los avisos del vigilante llegan en ~9 s en vez de ~17 s. Viene desactivado; si `clamd` falla, se usa `clamscan`.
 - **Marcar como seguro.** Para los falsos positivos: Garita guarda la huella SHA-256 del archivo y deja de avisar de él mientras no cambie.
 - **Notificaciones nativas** e **historial de avisos**.
+- **Se actualiza sola** con [Sparkle](https://sparkle-project.org): una vez al día mira si hay versión nueva en GitHub Releases, comprueba su firma y pregunta antes de instalarla.
 - **Límites amplios y análisis a fondo.** ClamAV revisa archivos de hasta 2 GB y comprimidos con hasta 100 000 archivos o 4 GB de contenido. Lo que aún supere esos límites se abre aparte: las DMG se montan solo lectura, y los ZIP, TAR y PKG se descomprimen en una carpeta temporal si hay espacio. Nada se salta en silencio.
 
 ## Instalar (desde el .dmg)
@@ -64,4 +65,14 @@ ClamAV es © Cisco Systems, Inc., con licencia GNU GPLv2. Su licencia y el enlac
 ## Planes
 
 - Firma con Apple Developer ID y notarización, para que Gatekeeper no avise.
-- Actualizaciones automáticas de la propia app (Sparkle).
+
+## Apoya Garita
+
+Garita es gratis, no tiene publicidad y no envía tus datos a ningún sitio. Si te resulta útil, puedes
+apoyar su desarrollo:
+
+- [Liberapay](https://liberapay.com/jaca101/): donativos mensuales, gestionado por una organización sin ánimo de lucro.
+- [Ko-fi](https://ko-fi.com/jaca101): donativos puntuales con PayPal o tarjeta.
+
+Dudas o ayuda: [@jaca101 en Telegram](https://t.me/jaca101), o abre una
+[issue](https://github.com/jaca101/garita/issues).
