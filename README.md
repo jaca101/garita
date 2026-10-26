@@ -34,7 +34,10 @@ Hace falta Xcode (o sus herramientas de línea de comandos) y macOS 15 o posteri
 ./construir.sh abrir    # compila build/Garita.app para este Mac y la abre
 ./instalar.sh           # la instala o actualiza en /Applications
 ./empaquetar.sh         # binario universal + build/Garita-<versión>.dmg
+./publicar.sh           # .dmg + actualización firmada (Sparkle) en GitHub Releases
 ```
+
+Para publicar una versión: sube `CFBundleShortVersionString` y `CFBundleVersion` en `Recursos/Info.plist`, escribe `notas/<versión>.md`, haz commit y ejecuta `./publicar.sh`. Con `./publicar.sh preparar` se genera todo sin subir nada. La firma de las actualizaciones usa la clave EdDSA privada del llavero del autor; sin ella no se puede publicar una actualización que Garita acepte.
 
 El proyecto usa Swift Package Manager, sin proyecto de Xcode: todo es texto legible.
 
@@ -47,6 +50,7 @@ El proyecto usa Swift Package Manager, sin proyecto de Xcode: todo es texto legi
 | `Sources/Garita/Vigilante.swift` | FSEvents: detecta descargas nuevas y terminadas |
 | `Sources/Garita/Cuarentena.swift` | Aislar, restaurar y eliminar |
 | `Sources/Garita/Notificaciones.swift` · `Historial.swift` | Avisos |
+| `Sources/Garita/Actualizaciones.swift` | Actualizaciones de la app con Sparkle |
 | `Sources/Garita/Seccion*.swift` · `Ventana*.swift` | Interfaz |
 
 ## ClamAV integrado

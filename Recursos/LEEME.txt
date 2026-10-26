@@ -34,6 +34,14 @@ GPLv2. Licencia y enlace al código fuente en:
 Garita.app → Mostrar contenido del paquete → Contents/Resources/clamav/licencias
 
 
+ACTUALIZACIONES
+---------------
+Garita se actualiza sola: una vez al día mira si hay una versión nueva en
+https://github.com/jaca101/garita/releases, comprueba que está firmada por
+su autor y te pregunta antes de instalarla. Se puede desactivar o buscar a
+mano en la sección «Garita» del panel.
+
+
 ACCESO TOTAL AL DISCO (recomendado)
 -----------------------------------
 Para escanear carpetas protegidas (Mail, Mensajes, Safari, datos de otras
